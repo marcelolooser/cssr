@@ -16,12 +16,12 @@ to the underlying concepts can be found in the following publication
 
 
 #### Table of Contents 
-	- [The Python package cssr](#the-python-package-cssr)
-		- [Table of Contents](#table-of-contents)
-	    - [Overview](#overview)
-	    - [Project status](#project-status)
-	    - [References](#references)
-	    - [Limitations](#limitations)
+- [The Python package cssr](#the-python-package-cssr)
+	- [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Project status](#project-status)
+  - [References](#references)
+  - [Limitations](#limitations)
 
 
 ## Overview
