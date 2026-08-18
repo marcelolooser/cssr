@@ -1,5 +1,5 @@
 """
-The measurementMatrices module of the cssr package provides classes and functions
+The measurement_matrices module of the cssr package provides classes and functions
 for constructing measurement matrices for compressed-sensing-based tasks. The
 MeasurementMatrices class allows users to create various types of measurement
 matrices that can be used in the compressive sensing porcedure. They are a critical
@@ -19,7 +19,7 @@ import scipy.linalg
 
 # =============================================================================
 
-class MeasurementMatrices:
+class Measurement_Matrices:
     """Construction of the measurment matrix, this matrix will be multiplied
     by the a_tr matrix which gives the sensing matrix for compressed sensing.
 

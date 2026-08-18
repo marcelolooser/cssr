@@ -7,8 +7,8 @@ __version__ = "0.0.1"
 
 from .filters import Filters
 from .frames import Frames, FrameCheck
-from .measurementMatrices import MeasurementMatrices
+from .measurement_matrices import Measurement_Matrices
 from .superresolvers import Superresolvers
 
 
-__all__ = [ "Filters", "Frames", "FrameCheck", "MeasurementMatrices", "Superresolvers"]
+__all__ = [ "Filters", "Frames", "FrameCheck", "Measurement_Matrices", "Superresolvers"]
