@@ -3,7 +3,7 @@ Created on Fri Apr 23 15:38:29 2021
 @author: marcelo looser
 """
 
-__version__ = "0.0.1"
+__version__ = "0.0.1a1"
 
 from .filters import Filters
 from .frames import Frames, FrameCheck
