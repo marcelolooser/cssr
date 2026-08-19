@@ -3,11 +3,7 @@
 *cssr* is a Python package that functions as a Compressed Sensing-based super-resolution framework of 
 low-pass filtered and noisy ground truth signals which admit a sparse representation in some domain. 
 
-This software was originally developed as part of a BSc thesis project for scanning tunneling microscopy. 
-The repository is currently intended as a research-oriented archive and experimental codebase rather 
-than a production-ready library.
-
-An elmentary tutorial is avilable in the directory [tutorials](tutorial). A speciallized introduction 
+An elmentary tutorial is avilable in the directory [tutorials](tutorial/). A speciallized introduction 
 to the underlying concepts can be found in the following publication
 
 > S. Gazit, A. Szameit, Y. C. Eldar, and M. Segev,
@@ -17,33 +13,33 @@ to the underlying concepts can be found in the following publication
 
 #### Table of Contents 
 - [The Python package cssr](#the-python-package-cssr)
-	- [Table of Contents](#table-of-contents)
+    - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Project status](#project-status)
-  - [References](#references)
   - [Limitations](#limitations)
+  - [References](#references)
 
 
 ## Overview
-The *cssr* package is intended as a sparse recovery framework for signals that have been subject to 
+The *cssr* package is as a sparse recovery framework for signals that have been subject to 
 physics-imposed resolution limitations and noise corruption, and is based on a collection of various 
 algorithms (cf. [References](#references)). Its central components include:
-	- (overcomplete) sparsifying dictionaries
-	- low-pass filtering operators
-	- (optimized) measurement matrics
-	- sparse recovery algorithms
+- (overcomplete) sparsifying dictionaries
+- low-pass filtering operators
+- (optimized) measurement matrics
+- sparse recovery algorithms
 
 
 ## Project status
-The *cssr* package is currently in an alpha stage. It is best understood as a computational prototype 
-for academic and exploratory use.
+The *cssr* package was originally developed as part of a BSc thesis project for scanning tunneling 
+microscopy to overcome thermal and instrumental broadening (+ noise). It is currently in an alpha 
+stage and can best be understood as a computational prototype for academic and exploratory use.
 
 
 ## Limitations
-Note, the *cssr* package is still under development and, because the limitations have not yet been 
-fully determined, released only as a alpha version. However, the package is already fully functional 
-and documented through docstrings. The code is suitable for academic exploration, but additional 
-testing, documentation, and robustness checks are required.
+The *cssr* package is still under development and, because the limitations have not yet been fully 
+determined, released only as a alpha version. While additional testing, documentation, and robustness 
+checks are required, the package is already fully functional and documented through docstrings. 
 
 
 ## License
