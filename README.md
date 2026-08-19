@@ -1,7 +1,7 @@
 # The Python package *cssr*
 
 *cssr* is a Python package that functions as a Compressed Sensing-based super-resolution framework of 
-low-pass filtered and noisy ground truth signals which admit a sparse representation in some domain. 
+(primarily) low-pass filtered and noisy ground truth signals which admit a sparse representation in some domain. 
 
 An elmentary tutorial is avilable in the directory [tutorials](tutorials/). A speciallized introduction 
 to the underlying concepts can be found in the following publication
@@ -25,7 +25,7 @@ The *cssr* package is as a sparse recovery framework for signals that have been 
 physics-imposed resolution limitations and noise corruption, and is based on a collection of various 
 algorithms (cf. [References](#references)). Its central components include:
 - (overcomplete) sparsifying dictionaries
-- low-pass filtering operators
+- (low-pass) filtering operators
 - (optimized) measurement matrics
 - sparse recovery algorithms
 

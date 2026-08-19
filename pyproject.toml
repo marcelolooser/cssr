@@ -8,7 +8,15 @@ license = "MIT"
 authors = [
     {name = "Marcelo Looser", email = "marcelo.looser@outlook.com"}
 ]
-keywords = ["compressed-sensing", "sparse-recovery", "super-resolution", "signal-processing", "STM"]
+keywords = [
+    "compressed-sensing", 
+    "sparse-recovery", 
+    "super-resolution", 
+    "signal-processing", 
+    "low-pass filtering",
+    "themral broadening",
+    "instrumental broadening",
+    "STM"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
