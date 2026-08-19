@@ -4,9 +4,10 @@ The filters module of the cssr package provides a class for filtering signals an
 sensing matrices. The Filters class allows users to apply these filters to input
 arrays, either as a critical ingridient for constructing sensing matrices or to
 filter signals itself. Currently it includes various low-pass filters, such as
-Heaviside, instrumental, and thermal filters, etc. In paricular, the instrumental
+ideal low-pass, instrumental, and thermal filters, as well as other general filters 
+(high-pass, band-pass, and band-stop filters). In paricular, the instrumental
 and thermal filters are based on specific physical models, as described in the
-reference provided in the documentation.
+reference provided in the documentation. 
 
 
 Created on Wed Mar 17 19:53:02 2021
@@ -20,32 +21,37 @@ import scipy.signal
 # =============================================================================
 
 class Filters:
-    """Filters a given input array, this class is specificaly written for the
-    sparsifying matrix. However signals are also execepted.
-
+    """
+    The Filters class provides a collection of (primaryly low-pass) filter operators that 
+    are used first and foremost as a central component in constructing sensing matrices, 
+    but can also be applied to signals. In particular, the class is initialized 
+    with a sparsifying matrix or datapoints as its first parameter.
+    
     Parameters
     ----------
     a0 : array like
         Sparsifying matrix (or just datapoints).
     x_signal : array like
-        x-component of the signal.
+        X-components of the signal.
     y_signal : array like, optional
-        Signal, this must be provided if only threshold_per is given.
+        Y-components of the signal can be provided iff no cutoff is provided 
+        and a rough estimation of the cutoff frequency is known. The latter 
+        must be provided through the optional parameter threshold_level. 
+        The default is None.
     cutoff : float, optional
-        "Cutoff" frequency, in the case of ther themal and instrumental
-        function it is the temperature or energy respectively.
-        pass filter. The default is None, in this case the bad estimation with
-        frequencies in fourier space get used, this will be dropped in later versions.
-    threshold_per : float, optional
-        If cutoff is None, threshold_per will be used to make a rough es-
-        timate of the cutoff frequency using threshold_per*max(magnitude of
-        y_fft). (...). The default is 2e-2.
+        "Cutoff" frequency; for the thermal and instrumental low-pass filters, 
+        this parameter represents the temperature and energy cutoff, 
+        respectively. If no cuttoff is provided, a rough estimation is made.
+    threshold_level : float, optional
+        If cutoff is None, threshold_level will be used to make a rough estimate 
+        of the cutoff frequency using threshold_level*max(magnitude of y_fft). 
+        The default is 2e-2.
     sense_mat : boolean, optional
         If instead of a matrix an array should be filtered set sense_mat to False.
         The default is True.
     """
 
-    def __init__(self, a0, x_signal, y_signal=None, cutoff=None, threshold_per=2e-2, sense_mat=True):
+    def __init__(self, a0, x_signal, y_signal=None, cutoff=None, threshold_level=2e-2, sense_mat=True):
         self.a_tr = a0.copy()
         self.cutoff = cutoff
         self.sense_mat = sense_mat
@@ -58,20 +64,19 @@ class Filters:
                 if len(self.a_tr) != a0.shape[0]:
                     raise AttributeError
             except AttributeError:
-                raise AttributeError("If sense_mat False, the provided a0 must be\n"\
-                                     "an array of shape (n,) or (n,1). If this\n"\
-                                     "was provided with intention, set sense_mat\n"\
-                                     "to True.")
+                raise AttributeError("If sense_mat is False, a0 must be\n"\
+                                     "an array of shape (n,) or (n,1).")
         if cutoff is None:
             try:
                 self.y = y_signal.reshape((-1,1))
             except AttributeError:
                 raise AttributeError("If no cutoff is provided, a naive search\n"\
-                                     "will be conducted via the parameter threshold_per\n"\
-                                     "an amplitude is needed to do so. Provide\n"\
-                                     "the corresponing y array.")
+                                     "will be conducted through the optional parameters\n"\
+                                     "y_signal and threshold_level but no y_signal was provided.\n"\
+                                     "Please provide y_signal or set\n"\
+                                     "a cutoff.")
         self.__x_fft()
-        self.__low_pass_detector(threshold_per=threshold_per) #deprecated will be modified in later versions
+        self.__low_pass_detector(threshold_level=threshold_level) #will be modified in later versions
 
 
     @staticmethod
@@ -87,71 +92,57 @@ class Filters:
 
 
     def heaviside_lowpass_filter(self):
-        """ Performs a ideal low pass filtering of a given signal. If sense_mat
-        True the sensing (basis) matrix gets convoluted with the low pass filter
-        matrix.
-
-        Parameters
-        ----------
-        sense_mat : boolean, optional
-            If True it is assumed that the sensing (basis) matrix gets passed on in
-            the parameter a, resulting in a concolution of the low pass filter matrix
-            and the matrix a. The default is False.
+        """
+        Ideal low-pass filter.
 
         Returns
         -------
         a_tr : ndarray
-            A fir filter convoluted with a0. If sense_mat True it will not be a
-            full convolution an additional fourier transform is necessary (will
-            be deleted in later versions).
+            An ideal low-pass filter convoluted with a0.
         """
-        coeff = scipy.fft.fftshift(scipy.fft.fft(self.__heaviside_box_function(self.x_fft, abs(self.x_fft).max() - self.cutoff)))
+
+        coeff = scipy.fft.fftshift(scipy.fft.fft(self.__heaviside_box_function()))
         coeff = coeff/(sum(coeff.real))
         self.__convolve(coeff)
         return self.a_tr
 
 
-    @staticmethod
-    def __heaviside_box_function(x_fft, cutoff):
-        """A variation of the heaviside step function. The function value is one
-        in the interval [-cutoff, cutoff] else zero. Caution this is done in a
-        reversed manner i.e. (abs(x_fft) > cutoff) instead of (abs(x_fft) < cutoff)
-        since the scipy.fft.fft needs an addional shift scipy.fft.fftshift.
-
-        Parameters
-        ----------
-        x_fft : ndarray
-            Frequency componenet in fourier space.
-        cutoff : float
-            Cutoff frequency.
+    def __heaviside_box_function(self):
+        """
+        A variation of the heaviside step function. The function value is one
+        in the interval [-cutoff, cutoff] and otherwise zero. Note, this is done in a
+        reversed manner , i.e., (abs(x_fft) > cutoff) instead of (abs(x_fft) < cutoff),
+        due to scipy.fft.fft (alternatively x_fft must be generated with an addional 
+        shift scipy.fft.fftshift).
 
         Returns
         -------
-        Array with zeros and ones based on the cutoff frequency.
+        Binary array based on the cutoff frequency.
         """
-        return 1*(abs(x_fft) > cutoff)
+        return 1*(abs(self.x_fft) > abs(self.x_fft).max() - self.cutoff)
 
 
     def fir_lowpass_filter(self, numtabs=4, pass_zero="lowpass"):
-        """ Finite impulse response filter implemented via the scipy signal package.
+        """
+        Finite impulse response (FIR) filter.
 
         Parameters
         ----------
         numtabs : int, optional
-            Length of the filter (number of coefficients, i.e. the filter
+            Length of the filter (number of coefficients, i.e., the filter
             order + 1). numtaps must be odd if a passband includes the Nyquist
             frequency. The default is 4.
-        pass_zero :  {True, False, 'bandpass', 'lowpass', 'highpass', 'bandstop'}, optional
+        pass_zero :  {True, False, "bandpass", "lowpass", "highpass", "bandstop"}, optional
             If True, the gain at the frequency 0 (i.e., the "DC gain") is 1. If
-            False, the DC gain is 0. Can also be a string argument for the de-
-            sired filter type (equivalent to btype in IIR design functions).
-            Is a passband is used the cutoff must be interval. The default is
-            "lowpass".
+            False, the DC gain is 0. Can also be a string parameter for the desired 
+            filter type (equivalent to btype in IIR design functions).
+            If a passband is used the cutoff must be an interval, i.e., 
+            a list of two floats. The default is "lowpass".
 
         Returns
         -------
         a_tr : ndarray
-            A fir filter convoluted with a0.
+            A FIR filter convoluted with a0.
         """
 
         tabs = self.__fir_lowpass(numtabs, pass_zero)
@@ -160,8 +151,9 @@ class Filters:
 
 
     def __fir_lowpass(self, numtabs=4, pass_zero="lowpass"):
-        """ This function computes the coefficients of a finite impulse response
-        filter. For more information see documentation firwin in scipy.signal.
+        """
+        This function computes the coefficients of a finite impulse response
+        filter. For more information see documentation "firwin" in scipy.signal.
 
         Parameters
         ----------
@@ -169,18 +161,19 @@ class Filters:
             Length of the filter (number of coefficients, i.e. the filter
             order + 1). numtaps must be odd if a passband includes the Nyquist
             frequency. The default is 4.
-        pass_zero :  {True, False, 'bandpass', 'lowpass', 'highpass', 'bandstop'}, optional
+        pass_zero :  {True, False, "bandpass", "lowpass", "highpass", "bandstop"}, optional
             If True, the gain at the frequency 0 (i.e., the "DC gain") is 1. If
-            False, the DC gain is 0. Can also be a string argument for the de-
+            False, the DC gain is 0. Can also be a string parameter for the de-
             sired filter type (equivalent to btype in IIR design functions).
-            Is a passband is used the cutoff must be interval. The default is
-            "lowpass".
+            If a passband is used the cutoff must be an interval, i.e., 
+            a list of two floats. The default is "lowpass".
 
         Returns
         -------
         tabs : ndarray
-            Coefficients of length numtaps FIR filter.
+            An array of coefficients for the FIR filter.
         """
+
         fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
         nyq = 0.5*fs # nyquist frequency
         cutoff = self.cutoff / nyq
@@ -189,42 +182,46 @@ class Filters:
 
 
     def butter_lowpass_filter(self, order=4, btype="lowpass"):
-        """ Butterworth filter implemented via the scipy signal package.
+        """
+        Butterworth filter.
 
         Parameters
         ----------
 
         N : int
-            The order of the filter.
-        btype : {'lowpass', 'highpass', 'bandpass', 'bandstop'}, optional
-            The type of filter. Default is 'lowpass'.
+            Order of the filter.
+        btype : {"lowpass", "highpass", "bandpass", "bandstop"}, optional
+            Filter type. The default is "lowpass".
 
         Returns
         -------
         a_tr : ndarray
-            A butterworth filter convoluted with a0.
+            A Butterworth filter convoluted with a0.
         """
+
         sos = self.__butter_lowpass(order, btype)
         self.a_tr = scipy.signal.sosfiltfilt(sos, self.a_tr, padlen=0) # foward-backwards filtering
         return self.a_tr
 
 
     def __butter_lowpass(self, order=4, btype="lowpass"):
-        """ Butterworth filter implemented via the scipy signal package.
+        """
+        Butterworth filter implemented via the scipy signal package.
 
         Parameters
         ----------
 
         N : int
-            The order of the filter.
-        btype : {'lowpass', 'highpass', 'bandpass', 'bandstop'}, optional
-            The type of filter. Default is 'lowpass'.
+            Order of the filter.
+        btype : {"lowpass", "highpass", "bandpass", "bandstop"}, optional
+            Filter type. Default is "lowpass".
 
         Returns
         -------
         sos : ndarray
             Second-order sections representation of the IIR filter.
         """
+
         fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
         nyq = 0.5*fs # nyquist frequency
         cutoff = self.cutoff / nyq
@@ -233,7 +230,8 @@ class Filters:
 
 
     def instrumental_lowpass_filter(self):
-        """Instrumental function used as lowpass filter. See reference [1].
+        """
+        Instrumental function used as lowpass filter. See reference [1].
 
         Returns
         -------
@@ -247,16 +245,16 @@ class Filters:
            junctions**," Physical Review B, vol. 7, no. 6, pp. 2336–2348, Mar.
            1973, doi: 10.1103/PhysRevB.7.2336.
         """
-        coeff = self.__instrumental_function(self.x.ravel(), self.cutoff)
-        # print((sum(coeff)))
+
+        coeff = self.__instrumental_function()
         coeff = coeff/(sum(coeff))
         self.__convolve(coeff)
         return self.a_tr
 
 
-    @staticmethod
-    def __instrumental_function(x, cutoff):
-        """Instrumental function up to a factor 1/e where e is the elementary
+    def __instrumental_function(self):
+        """
+        Instrumental function up to a factor 1/e where e is the elementary
         charge. See reference [1].
 
         Returns
@@ -270,15 +268,17 @@ class Filters:
            junctions**," Physical Review B, vol. 7, no. 6, pp. 2336–2348, Mar.
            1973, doi: 10.1103/PhysRevB.7.2336.
         """
-        Vmod = cutoff
+
+        Vmod = self.cutoff
+        x = self.x.ravel()
         if Vmod < 0.:
             Vmod = 1
-        # here the function np.sign is used since numpy throws a warning for complex roots, but !!! they will be cutoff anyway
         return (8/(3*np.pi)) * ((np.sign(abs(Vmod**2 - x**2)) * (abs(Vmod**2 - x**2)**(3/2)))/(Vmod**4)) * (abs(x) < Vmod)
 
 
     def thermal_lowpass_filter(self):
-        """Thermal function times e. See reference [1].
+        """
+        Thermal function times e. See reference [1].
 
         Returns
         -------
@@ -292,15 +292,16 @@ class Filters:
            junctions**," Physical Review B, vol. 7, no. 6, pp. 2336–2348, Mar.
            1973, doi: 10.1103/PhysRevB.7.2336.
         """
-        coeff = self.__thermal_function(self.x.ravel(), self.cutoff)
-        # print((sum(coeff)))
+
+        coeff = self.__thermal_function()
         coeff = coeff/(sum(coeff))
         self.__convolve(coeff)
         return self.a_tr
 
-    @staticmethod
-    def __thermal_function(x, cutoff):
-        """Thermal function times e. See reference [1].
+
+    def __thermal_function(self):
+        """
+        Thermal function times e. See reference [1].
 
         Returns
         -------
@@ -313,7 +314,9 @@ class Filters:
            junctions**," Physical Review B, vol. 7, no. 6, pp. 2336–2348, Mar.
            1973, doi: 10.1103/PhysRevB.7.2336.
         """
-        temperature = cutoff
+
+        temperature = self.cutoff
+        x = self.x.ravel()
         if temperature <= 0:
             return np.ones(x.shape)
         else:
@@ -330,21 +333,19 @@ class Filters:
             chi = np.nan_to_num(chi, copy=True, nan=0.0) # drop nans and replace them by zero, these is caused by overflow in the power operation
             return chi
 
-    # this filtering method seems to have complexity O(N*N^2); matrix multiplica-
-    # tion has complexity between O(N^3) and  O(N^2) (investigate complexity of the
-    # matrix multiplication in python!) it could be possible to speed this up using
-    # np.cumsum(np.concatenate()) but I have to investigate this further. Caution
-    # the degrees of freedom for complex and real numbers must also be considered.
+
+    # consider using np.cumsum(np.concatenate())
     def __convolve(self, coeff):
-        """Convolves a function (coeff) with a given array. This is used here to
-        connstruct the corresponding sensing matrix for superresolution, if the
-        filtering function is known.
+        """
+        Convolves a coeff with a0.
 
         Parameters
         ----------
         coeff : ndarray
             DESCRIPTION.
-
+        Returns
+        -------
+        None.
         """
 
         if self.sense_mat:
@@ -354,17 +355,17 @@ class Filters:
             self.a_tr = scipy.signal.convolve(coeff, self.a_tr, mode="same")
 
 
-    #deprecated, will be droped in later versions
-    def __low_pass_detector(self, threshold_per=2e-2):
-        """Detects the lowest passed frequency, provided the threshold (or cut-
-        off) is suited. This function will be dopped in later versions.
+    def __low_pass_detector(self, threshold_level=2e-2):
+        """
+        Detects the lowest passed frequency, provided the threshold (or cut-
+        off) is suited. This function will be modified in later versions.
 
         Parameters
         ----------
-        threshold_per : float, optional
+        threshold_level : float, optional
             Threshold as a fraction of maximal amplitude of the fourier trans-
             formed signal. This is used to find a rough estimation of the cutoff
-            frequency. (Will be deleted in later versions). The default is 2e-2.
+            frequency. (Will be modified in later versions). The default is 2e-2.
         Returns
         -------
         None.
@@ -375,7 +376,7 @@ class Filters:
         else:
             y_fft = scipy.fft.fftshift(scipy.fft.fft(self.y, axis=0))
             y_fft = y_fft/np.linalg.norm(y_fft, "fro")
-            threshold = max(abs(y_fft))*threshold_per
+            threshold = max(abs(y_fft))*threshold_level
             cuttoff_arg = next(i for i, item in enumerate(abs(y_fft) >= threshold) if item)
             self.cutoff = abs(self.x_fft[cuttoff_arg])
 
@@ -383,7 +384,7 @@ class Filters:
     def __x_fft(self):
         """ Calculates the frequency component in the fourier domain."""
         m = len(self.a_tr)
-        x_fft = scipy.fft.fftshift(scipy.fft.fftfreq(m, d=abs(self.x[-1,0]-self.x[0,0])/self.x.shape[0]))       # spatial frequency centered around 0
+        x_fft = scipy.fft.fftshift(scipy.fft.fftfreq(m, d=abs(self.x[-1,0]-self.x[0,0])/self.x.shape[0])) # spatial frequency centered around 0
         self.x_fft = np.array(x_fft, dtype=object) # formating due to python 32bit
 
 

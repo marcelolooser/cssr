@@ -23,17 +23,15 @@ from functools import wraps
 # =============================================================================
 
 def _boost_superresolver(func):
-    """ Decorator for better (or at least as good) and more effi-
-    cient superresolution of signals via matching pursuit assisted LASSO algo-
-    rithms. See reference [1].
+    """
+    A decorator to increase the efficiency and performance of superresolution  
+    modules within the Superresolvers class via a matching pursuit assisted LASSO 
+    algorithm. See reference [1].
 
     Parameters
     ----------
     func : callable
         LASSO based l1 sparse solver.
-    r : float, optional
-        The booster can be deactivated by setting r to zero.
-        The default is 20.
     max_iter : int, optional
         Maximal number of iterations. The default is 20.
 
@@ -44,6 +42,7 @@ def _boost_superresolver(func):
        Processing, vol. 63, no. 3, pp. 727-741, Feb.1, 2015,
        doi: 10.1109/TSP.2014.2385036.
     """
+
     @wraps(func)
     def inner(self, *args, eta=0.8, rho=None, max_iter=30, atol=1e-8, **kwargs):
         """
@@ -52,9 +51,10 @@ def _boost_superresolver(func):
         *args :
             Additional arguments to be passed to the superresolver.
         eta : float, optional
-            Hyperparameter to guess the hyperparameter rho, The default is 0.8.
+            Hyperparameter to guess the hyperparameter rho. The default is 0.8.
         rho : float, optional
-            Hyperparameter to mitigate "overfitting". The default is None.
+            Hyperparameter to mitigate "overfitting". The booster can be 
+            deactivated by setting rho to zero. The default is None.
         max_iter :  int, optional
             Maximal number of iterations. The default is 30.
         atol : float, optional
@@ -105,14 +105,18 @@ def _boost_superresolver(func):
 # =============================================================================
 
 class Superresolvers:
-    """ Perform superresolutio on given data.
+    """
+    The Superresolvers class provides a collection of compressive sensing-based 
+    superresolution algorithms for reconstructing signals that admit a sparse 
+    representation in some domain and have been corrupted by a linear operation 
+    such as a low-pass filter, and noise. 
 
     Parameters
     ----------
     a0 : array like
         Sparsifying basis.
     a_tr : array like
-        Low pass filtered sparsifying matrix.
+        Low-pass filtered sparsifying matrix.
     ar : array like
         Measurement matrix.
     """
@@ -140,24 +144,24 @@ class Superresolvers:
 
 
     def bp(self, y_signal,  solver="CLARABEL"):
-        """ Basis pursuit. See reference [1].
+        """
+        Basis pursuit. See reference [1].
 
         Parameters
         ----------
-        x_signal : array like
-            X component of signal.
         y_signal : array like
-            Signal.
+            Y-components of the signal.
         solver : str, optional
             Convex solver used in the package cvxpy. The default is "CLARABEL".
 
         Returns
         -------
         y_hat : array like
-            Reconstructed array.
+            Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of reconstructed array (in general more di-
-            mensions than reconstructed array, with shape (a0.shape[1], y_signal.shape[1])).
+            Sparse representation of the reconstructed signal y_hat. 
+            Note, y_sparse_hat is in general of larger in dimension then the
+            reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
         References
         ----------
@@ -165,34 +169,34 @@ class Superresolvers:
            decomposition by basis pursuit**," SIAM Review, vol. 43, no. 1,
            pp. 129–159, 2001, doi: 10.1137/S003614450037906X
         """
-        y_t = y_signal.reshape((-1,1))
-        signal_length, axes3d = y_t.shape
 
-        b = self.ar.dot(y_t)                               # random measured signal
-        y0 = np.dot(self.a.T, b)                                # initial vector
+        y_t = y_signal.reshape((-1,1))
+        _, axes3d = y_t.shape
+
+        b = self.ar.dot(y_t) # random measured signal
+        y0 = np.dot(self.a.T, b) # initial vector
 
         vx = cvxpy.Variable((self.n, axes3d), complex=True)
-        vx.value = y0                                           # assigning initial vector to the vx
+        vx.value = y0 # assigning initial vector to the vx
 
         objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
         constraints = [self.a @ vx == b]
         prob = cvxpy.Problem(objective, constraints)
         prob.solve(solver=solver)
 
-        y_sparse_hat = vx.value .real                           # recovered sparse signal
+        y_sparse_hat = vx.value.real  # recovered sparse signal
         y_hat = self.a0.dot(y_sparse_hat).real
         return y_hat, y_sparse_hat
 
 
     def bpd(self, y_signal, noise_level, solver="CLARABEL"):
-        """Basis pursuit denoising. See reference [1].
+        """
+        Basis pursuit denoising. See reference [1].
 
         Parameters
         ----------
-        x_signal : array like
-            X component of signal.
         y_signal : array like
-            Signal.
+            Y-components of the signal.
         noise_level : float
             Magnitude of estimated noise.
         solver : str, optional
@@ -201,52 +205,52 @@ class Superresolvers:
         Returns
         -------
         y_hat : array like
-            Reconstructed array.
+            Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of reconstructed array (in general more di-
-            mensions than reconstructed array, with shape (a0.shape[1], y_signal.shape[1])).
+            Sparse representation of the reconstructed signal y_hat. 
+            Note, y_sparse_hat is in general of larger in dimension then the
+            reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
         References
         ----------
         .. [1] S. S. Chen, D. L. Donoho, and M. A. Saunders, "**Atomic
            decomposition by basis pursuit**," SIAM Review, vol. 43, no. 1,
            pp. 129–159, 2001, doi: 10.1137/S003614450037906X
-
         """
-        y_t = y_signal.reshape((-1,1))
-        signal_length, axes3d = y_t.shape
 
-        b = self.ar.dot(y_t)                               # random measured signal
-        y0 = np.dot(self.a.T, b)                                # initial vector
+        y_t = y_signal.reshape((-1,1))
+        _, axes3d = y_t.shape
+
+        b = self.ar.dot(y_t) # random measured signal
+        y0 = np.dot(self.a.T, b) # initial vector
 
         vx = cvxpy.Variable((self.n, axes3d), complex=True)
-        vx.value = y0                                           # assigning initial vector to the vx
+        vx.value = y0 # assigning initial vector to the vx
 
         objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
         constraints = [cvxpy.sum_squares(self.a @ vx - b) <= noise_level]
         prob = cvxpy.Problem(objective, constraints)
         prob.solve(solver=solver)
 
-        y_sparse_hat = vx.value.real                            # recovered sparse signal
+        y_sparse_hat = vx.value.real # recovered sparse signal
         y_hat = self.a0.real.dot(y_sparse_hat)
         return y_hat, y_sparse_hat
 
 
-    @_boost_superresolver  # slightly modified ic-algorithm  to fit boost_superresolver
+    @_boost_superresolver
     def ic(self, y_signal, lam=None, l=25, max_iter=20, y0=None, support=None, solver="CLARABEL"):
-        """Basis pursuit denoising, via in-crowd method. See reference [1].
+        """
+        Basis pursuit denoising, via in-crowd method. See reference [1].
 
         Parameters
         ----------
-        x_signal : array like
-            X component of signal.
         y_signal : array like
-            Signal.
+            Y-components of the signal.
         lam : float, optional
-            Parameter for the LASSO optimization. If None lam is 5% of the ma-
-            gnitude of a_tr.T*y_signal. The default is None.
+            Hyperparameter for the LASSO optimization. If None, lam is 5% of the 
+            magnitude of a_tr.T*y_signal. The default is None.
         l : int, optional
-            Maximal number of items to be included to the active set of atoms,
+            Maximal number of items that will be included in the active set of atoms
             (the active set grows over each iteration). The default is 25.
         max_iter : int optional
             Maximal number of iterations. The default is 20.
@@ -256,10 +260,11 @@ class Superresolvers:
         Returns
         -------
         y_hat : array like
-            Reconstructed array.
+            Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of reconstructed array (in general more di-
-            mensions than reconstructed array, with shape (a0.shape[1], y_signal.shape[1])).
+            Sparse representation of the reconstructed signal y_hat. 
+            Note, y_sparse_hat is in general of larger in dimension then the
+            reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
         Refernces
         ---------
@@ -270,18 +275,18 @@ class Superresolvers:
         """
 
         y_t = y_signal.reshape((-1,1))
-        signal_length, axes3d = y_t.shape
+        _, axes3d = y_t.shape
         lam = 0.007 * np.linalg.norm(self.a_tr.T.dot(y_t).ravel(), np.inf) + 1e-6 if lam is None else lam
 
         if support is None:
             support = range(self.n)
 
-        b = self.ar.dot(y_t)                                        # random measured signal
+        b = self.ar.dot(y_t) # random measured signal
         y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (proxy vor sparse vector)
         vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
-        vx.value = y0                                           # assigning initial vector to the vx, rough guess
+        vx.value = y0 # assigning initial vector to the vx, rough guess
 
-        s, sc = [], list(range(y0.shape[0]))                        # active set and complementary set
+        s, sc = [], list(range(y0.shape[0])) # active set and complementary set
         loop_count = 0
         while loop_count < max_iter:
 
@@ -309,31 +314,29 @@ class Superresolvers:
                 vx.value[sc] = 0
                 loop_count += 1
 
-        y_sparse_hat = vx.value                            # recovered sparse signal
+        y_sparse_hat = vx.value # recovered sparse signal
         y_hat = self.a0[:,support][:,s].dot(y_sparse_hat[s,:])
         return y_hat, y_sparse_hat
 
 
-    # basis pursuit denoising resp. spectral projected gradient for L1 minimization
-    # (SPGL1) + off-support search
     def nlht(self, y_signal, noise_level, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
-        """Basis pursuit denoising via non-local hard threshholding. See reference [1].
+        """
+        Basis pursuit denoising via non-local hard threshholding, a spectral
+        projected gradient method for L1 minimization with SPGL1 + off-support
+        search. See reference [1].
 
         Parameters
         ----------
-        x_signal : array like
-            X component of signal.
         y_signal : array like
-            Signal.
+            Y-components of the signal.
         noise_level : float
-            Magnitude of estimated noise.
+            Magnitude of the estimated noise.
         nnw : int, optional
-            nnw neatrest neighbours to be searched for off support addition.
-            The default is 9.
+            Nearest neighbour rank that will be used to conduct the 
+            search for off-support addition. The default is 9.
         zeta0 : float, optional
-            Fraction of max(magnitude) of the reconstructed vector in the sparse
-            representation. Is needed as a measure of noise consideration.
-            The default is 0.025.
+            Fraction of the maximum magnitude attained from the (intermediate) 
+            reconstructed signal in its sparse representation The default is 0.025.
         dzeta : float, optional
             Step size for increasing zeta0 over each iteration.
             The default is 0.025.
@@ -343,10 +346,11 @@ class Superresolvers:
         Returns
         -------
         y_hat : array like
-            Reconstructed array.
+            Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of reconstructed array (in general more di-
-            mensions than reconstructed array, with shape (a0.shape[1], y_signal.shape[1])).
+            Sparse representation of the reconstructed signal y_hat.
+            Note, y_sparse_hat is in general of larger in dimension then the
+            reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
         References
         ----------
@@ -355,7 +359,7 @@ class Superresolvers:
            vol. 17, no. 26, pp. 23920–23946, 2009, doi: 10.1364/OE.17.023920.
         """
         y_t = y_signal.reshape((-1,1))
-        signal_length, axes3d = y_t.shape
+        _, axes3d = y_t.shape
 
         if support is None:
             support = range(self.n)
@@ -399,34 +403,31 @@ class Superresolvers:
             red = temp
 
 
-        y_sparse_hat = vx.value                                # recovered sparse signal
+        y_sparse_hat = vx.value # recovered sparse signal
         y_hat = self.a0[:,support].dot(y_sparse_hat)
         return y_hat, y_sparse_hat
 
 
-    # basis pursuit denoising resp. spectral projected gradient for L1 minimization
-    # (SPGL1) + off-support search, modified to fit boosted_superresolver
     @_boost_superresolver
     def nlht_lasso(self, y_signal, lam=None, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
-        """Basis pursuit denoising via non-local hard threshholding, in lasso
-        form. See reference [1].
+        """
+        Basis pursuit denoising via non-local hard threshholding (lasso form),
+        a spectral projected gradient method for L1 minimization with SPGL1 +
+        off-support search. See reference [1].
 
         Parameters
         ----------
-        x_signal : array like
-            X component of signal.
         y_signal : array like
-            Signal.
+            Y-components of the signal.
         lam : float, optional
-            Parameter for the LASSO optimization. If None lam is 5% of the ma-
+            Parameter for the LASSO optimization. If None, lam is 5% of the ma-
             gnitude of a_tr.T*y_signal. The default is None.
         nnw : int, optional
-            nnw neatrest neighbours to be searched for off support addition.
-            The default is 9.
+            Nearest neighbour rank that will be used to conduct the 
+            search for off-support addition. The default is 9.
         zeta0 : float, optional
-            Fraction of max(magnitude) of the reconstructed vector in the sparse
-            representation. Is needed as a measure of noise consideration.
-            The default is 0.025.
+            Fraction of the maximum magnitude attained from the (intermediate) 
+            reconstructed signal in its sparse representation The default is 0.025.
         dzeta : float, optional
             Step size for increasing zeta0 over each iteration.
             The default is 0.025.
@@ -436,10 +437,11 @@ class Superresolvers:
         Returns
         -------
         y_hat : array like
-            Reconstructed array.
+            Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of reconstructed array (in general more di-
-            mensions than reconstructed array, with shape (a0.shape[1], y_signal.shape[1])).
+            Sparse representation of the reconstructed signal y_hat.
+            Note, y_sparse_hat is in general of larger in dimension then the
+            reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
         References
         ----------
@@ -449,7 +451,7 @@ class Superresolvers:
         """
 
         y_t = y_signal.reshape((-1,1))
-        signal_length, axes3d = y_t.shape
+        _, axes3d = y_t.shape
 
         lam = 0.007 * np.linalg.norm(self.a_tr.T.dot(y_t).ravel(), np.inf) + 1e-6 if lam is None else lam
 
@@ -495,14 +497,14 @@ class Superresolvers:
             loop_count += 1
 
 
-        y_sparse_hat = vx.value                      # recovered sparse signal
+        y_sparse_hat = vx.value  # recovered sparse signal
         y_hat = self.a0[:,support][:,s].dot(y_sparse_hat[s,:])
         return y_hat, y_sparse_hat
 
 
     @staticmethod
     def __nnwindow(red, nnw):
-        """Helper function for superresolver_nlht."""
+        """ Helper function for superresolver_nlht."""
         l = []
         dim = len(red)
         for i, item in enumerate(red):
@@ -515,9 +517,9 @@ class Superresolvers:
         return l
 
 
-    @staticmethod # Deprecated, will not be used, hence will be deleted in later versions
+    @staticmethod
     def __GSA(y_hat, y_t, g_iter):
-        """Gerchberg-Saxton algorithm for phase retrival."""
+        """ Gerchberg-Saxton algorithm for phase retrival."""
         for _ in range(g_iter):
             y_est_fft = scipy.fft.fft(y_t, axis=0)
             y_est_fft = np.abs(scipy.fft.fft(y_hat, axis=0))*np.exp(1j*np.angle(y_est_fft))
@@ -528,7 +530,7 @@ class Superresolvers:
 
     @staticmethod
     def _reduce(l1, l2, stop_cond=False):
-        """Gives a list back which elements of list l1 are not in l2."""
+        """ Gives a list back which elements of list l1 are not in l2."""
         if stop_cond is False:
             return [item for item in l1 if item not in l2]
 

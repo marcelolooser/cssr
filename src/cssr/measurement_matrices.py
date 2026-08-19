@@ -19,16 +19,19 @@ import scipy.linalg
 
 # =============================================================================
 
-class Measurement_Matrices:
-    """Construction of the measurment matrix, this matrix will be multiplied
-    by the a_tr matrix which gives the sensing matrix for compressed sensing.
+class MeasurementMatrices:
+    """
+    The MeasurementMatrices class provides methods for constructing various 
+    types of measurement matrices used in compressed sensing. These matrices 
+    are a central component in constructing sensing matrices.
 
     Parameters
     ----------
     number_samples : int
         Number of random samples.
     a_tr : array like
-        Filtered  and truncated sparse matrix.
+        Filtered sparsifying matrix. (Alternatively, the sparsifying matrix 
+        alone can be used.)
     """
 
     def __init__(self, number_samples, a_tr):
@@ -62,7 +65,7 @@ class Measurement_Matrices:
 
     def random_gauss_matrix(self):
         """
-        Randomly chosen values from a gaussian distribution, normalized.
+        Matrix from randomly chosen values of the gaussian distribution (normalized).
 
         Returns
         -------
@@ -75,12 +78,13 @@ class Measurement_Matrices:
 
     def random_bernoulli_matrix(self, probability=0.1):
         """
-        Randomly chosen values from a bernoulli distribution, 1, 0.
+        Binary matrix constructed from randomly chosen entries of the bernoulli distribution.
 
         Parameters
         ----------
         probability : float, optional
-            Parameter of the distribution, >= 0 and <=1. The default is 0.01.
+            Probability (between 0 and 1) of choosing 1 from a bernoulli distribution. 
+            The default is 0.1.
 
         Returns
         -------
@@ -92,7 +96,14 @@ class Measurement_Matrices:
 
 
     def random_partial_fourier_matrix(self):
-        """ Random selection of rows and columns of a descrete fourier matrix."""
+        """ 
+        Random selection of rows and columns of a descrete fourier matrix.
+        
+        Returns
+        -------
+        ar_matrix : ndarray
+            Measurement matrix.
+        """
         indices1 = random.sample(range(self.m), self.number_samples)
         indices2 = random.sample(range(self.n), self.m)
         full_dft = scipy.linalg.dft(self.n)
@@ -101,7 +112,14 @@ class Measurement_Matrices:
 
 
     def random_partial_dct_matrix(self):
-        """ Random selection of rows and columns of a descrete cosine matrix."""
+        """ 
+        Random selection of rows and columns of a descrete cosine matrix.
+        
+        Returns
+        -------
+        ar_matrix : ndarray
+            Measurement matrix.
+        """
         indices1 = random.sample(range(self.m), self.number_samples)
         indices2 = random.sample(range(self.n), self.m)
         dct = scipy.fft.dct(np.identity(self.n), axis=0)
@@ -110,8 +128,15 @@ class Measurement_Matrices:
 
 
     def random_toeplitz_matrix(self):
-        """ Random toeplitz matrix. Constructed via a vector with random +/- 1
-        as values, which gets used as the bulding block of a circular matrix."""
+        """ 
+        Random toeplitz matrix, constructed via a vector of randomly chosen
+        +/- 1 to get a circular matrix.
+        
+        Returns
+        -------
+        ar_matrix : ndarray
+            Measurement matrix.
+        """
         b = np.random.choice([-1,1], size=self.m)
         indices1 = random.sample(range(self.m), self.number_samples)
         ar_matrix = scipy.linalg.toeplitz(b)[indices1,:]
@@ -119,7 +144,16 @@ class Measurement_Matrices:
 
 
     def binary_block(self):
-        """ Binary block matrix. The given a_tr is an (M,N) array, ...."""
+        """ 
+        Binary block matrix. The given a_tr is an (M,N) array, constructed by 
+        inserting blocks of 1s in a staircase fashion into the diagonal entries 
+        of a zero matrix.
+        
+        Returns
+        -------
+        ar_matrix : ndarray
+            Measurement matrix.
+        """
         block_length = self.m//self.number_samples
         vec_temp = list(np.ones(block_length)) + list(np.zeros(self.m-block_length))
         ar_matrix = scipy.linalg.circulant(vec_temp)[block_length-1::block_length,:][:self.number_samples,:]
@@ -127,7 +161,8 @@ class Measurement_Matrices:
 
 
     def random_sgn_matrix(self):
-        """Random sign matrix, diagonal matrix with random values of -1, 1.
+        """
+        Random sign matrix, diagonal matrix with randomly chosen values +/- 1.
 
         Returns
         -------
@@ -142,8 +177,6 @@ class Measurement_Matrices:
         return ar_matrix
 
 
-    # there might be an issue with the normalization
-    # hard to compute for large matrices, due to the gram matrix
     def gdo_measurement_matrix(self, mu=None, beta=7e-6, l=30, p=20):
         """
         Gradient-based measurment matrix optimization, see Reference [1].
@@ -153,14 +186,14 @@ class Measurement_Matrices:
         Parameters
         ----------
         mu : float, optional
-            Wanted coherence, if None is provided the sub optimal welch bound will
+            Desired coherence. If None is provided, the sub-optimal Welch bound will
             be used. The default is None.
         beta : float, optional
-            Hyperparameter. The default is 1e-4.
+            Hyperparameter, also referred to as the learning rate. The default is 1e-4.
         l : int, optional
-            Number of loops, outer loop. Default is 25.
+            Number of outer loops. Default is 30.
         p : int, optional
-            Number of loops, inner loop. Default is 12.
+            Number of inner loops. Default is 20.
 
         Returns
         -------
@@ -175,7 +208,7 @@ class Measurement_Matrices:
            pp. 999–1009, Apr. 2012, doi: 10.1016/j.sigpro.2011.10.012.
         """
         ar_matrix = np.random.random(size=(self.number_samples, self.m))
-        mu_opt = self._welch_bound()
+        mu_opt = self.welch_bound()
         if mu is None:
             mu = mu_opt + 1e-3
         else:
@@ -194,8 +227,6 @@ class Measurement_Matrices:
         return ar_matrix
 
 
-    # inspect problem with normalization.
-    # hard to compute for large matrices, due to the gram matrix
     def gdo_measurement_matrix_adaptive(self, mu=None, beta=1e-3, l=25, p=12):
         """
         Adaptive gradient-based measurment matrix optimization. See reference [1].
@@ -205,14 +236,14 @@ class Measurement_Matrices:
         Parameters
         ----------
         mu : float, optional
-            Wanted coherence, if None is provided the sub optimal welch bound will
+            Desired coherence. If None is provided, the sub-optimal Welch bound will
             be used. The default is None.
         beta : float, optional
-            Initial hyperparameter, this will be adapted. Default is 1e-3.
+            Initial hyperparameter. This will be adapted. Default is 1e-3.
         l : int, optional
-            Number of loops, outer loop. Default is 25.
+            Number of outer loops. Default is 25.
         p : int, optional
-            Number of loops, inner loop. Default is 12.
+            Number of inner loops. Default is 12.
 
         Returns
         -------
@@ -228,7 +259,7 @@ class Measurement_Matrices:
         """
         self.a_tr = self._normalize_matrix(self.a_tr, 1)
         ar_matrix = np.sqrt(1/self.number_samples) * np.random.randn(self.number_samples, self.m)
-        mu_opt = self._welch_bound()
+        mu_opt = self.welch_bound()
 
         if mu is None:
             mu = mu_opt + 1e-3
@@ -272,15 +303,23 @@ class Measurement_Matrices:
         Parameters
         ----------
         eta : float, optional
-            Hyperparameter. The default is 0.006.
+            Hyperparameter, also referred to as the learning rate. The default is 0.006.
         max_iter : int, optional
-            Maximal number of iterations. The default is 50.
+            Maximum number of iterations. The default is 50.
         rtol : float, optional
             Cutoff factor for 'small' singular values. In lstsq, singular values
             less than rtol*largest_singular_value will be considered as zero.
-            If 0., the default value max(M, N) * eps is passed to lstsq where
-            eps is the corresponding machine precision value of the datatype of a.
+            If 0., the default value max(M, N) * eps is passed to lstsq, where
+            eps is the corresponding machine precision of the datatype of a.
             The default is 1e-6.
+        rtol_estimate : bool, optional
+            If True, the rtol value will be estimated based on the provided noise 
+            level or signal, which can be passed through **kwargs. If False, 
+            the default rtol value will be used. The default is True.
+        **kwargs :
+            Additional key-word arguments to be used for the rtol estimation.
+            The keys 'signal' and 'noise_level' can be provided to estimate 
+            the rtol value based on the signal coherence or noise level.
 
         Returns
         -------
@@ -325,15 +364,23 @@ class Measurement_Matrices:
         Parameters
         ----------
         eta : float, optional
-            Hyperparameter. The default is 0.01.
+            Hyperparameter, also referred to as the learning rate. The default is 0.01.
         max_iter : int, optional
-            Maximal number of iterations. The default is 10.
+            Maximum number of iterations. The default is 10.
         rtol : float, optional
             Cutoff factor for 'small' singular values. In lstsq, singular values
             less than rtol*largest_singular_value will be considered as zero.
-            If 0., the default value max(M, N) * eps is passed to lstsq where
-            eps is the corresponding machine precision value of the datatype of a.
-            The default is 5e-4.
+            If 0., the default value max(M, N) * eps is passed to lstsq, where
+            eps is the corresponding machine precision of the datatype of a.
+            The default is 5e-2.
+        rtol_estimate : bool, optional
+            If True, the rtol value will be estimated based on the provided noise 
+            level or signal, which can be passed through **kwargs. If False, 
+            the default rtol value will be used. The default is True.
+        **kwargs :
+            Additional key-word arguments to be used for the rtol estimation.
+            The keys 'signal' and 'noise_level' can be provided to estimate 
+            the rtol value based on the signal coherence or noise level.
 
         Returns
         -------
@@ -369,19 +416,27 @@ class Measurement_Matrices:
 
         Parameters
         ----------
-        mu : float
-            Wanted coherence, if None is provided the sub optimal welch bound will
+        mu : float, optional
+            Desired coherence. If None is provided, the sub-optimal Welch bound will
             be used. The default is None.
         l : int, optional
-            Number of loops, outer loop. Default is 25.
+            Number of outer loops. Default is 30.
         p : int, optional
-            Number of loops, inner loop. Default is 12.
+            Number of inner loops. Default is 25.
         rtol : float, optional
             Cutoff factor for 'small' singular values. In lstsq, singular values
             less than rtol*largest_singular_value will be considered as zero.
-            If 0., the default value max(M, N) * eps is passed to lstsq where
-            eps is the corresponding machine precision value of the datatype of a.
-            The default is 5e-4.
+            If 0., the default value max(M, N) * eps is passed to lstsq, where
+            eps is the corresponding machine precision of the datatype of a.
+            The default is 7e-6.
+        rtol_estimate : bool, optional
+            If True, the rtol value will be estimated based on the provided noise 
+            level or signal, which can be passed through **kwargs. If False, 
+            the default rtol value will be used. The default is True.
+        **kwargs :
+            Additional key-word arguments to be used for the rtol estimation.
+            The keys 'signal' and 'noise_level' can be provided to estimate 
+            the rtol value based on the signal coherence or noise level.      
 
         Returns
         -------
@@ -400,7 +455,7 @@ class Measurement_Matrices:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
 
         ar_matrix = np.random.random(size=(self.number_samples, self.m)).astype(complex)
-        mu_opt = self._welch_bound()
+        mu_opt = self.welch_bound()
 
         if mu is None:
             mu = mu_opt + 1e-3
@@ -443,7 +498,6 @@ class Measurement_Matrices:
 
 
     # hard to compute for large matrices, due to the gram matrix
-    # the probelm lies within the singular value decomposition for small eigenvalues the construction diverges
     def ycwg(self, c=0.015, max_iter=30, rtol=4e-2, rtol_estimate=True, **kwargs):
         """
         Alternating minimization method for measurement matrix optimization
@@ -454,19 +508,25 @@ class Measurement_Matrices:
         Parameters
         ----------
         c : float, optional
-            Parameter which gets added to the welch coherence bound, which gives
-            leads to a better local minimum in the optimization. The default is
-            0.01.
+            Hyperparameter that gets added to the Welch coherence bound. It leads to a
+            gradual optimization of local minimum determination within the optimization
+            procedure. The default is 0.015.
         max_iter : int, optional
-            Maximal number of iterations. The default is 20.
+            Maximum number of iterations. The default is 30.
         rtol : float, optional
             Cutoff factor for 'small' singular values. In lstsq, singular values
             less than rtol*largest_singular_value will be considered as zero.
-            If 0., the default value max(M, N) * eps is passed to lstsq where
-            eps is the corresponding machine precision value of the datatype of a.
-            I recomend setting rtol to 0.0 for signal to noise ratios above 1000,
-            in this way, way sparser solutions can be found !!!
-            The default is 5e-4.
+            If 0., the default value max(M, N) * eps is passed to lstsq, where
+            eps is the corresponding machine precision of the datatype of a.
+            The default is 4e-2.
+        rtol_estimate : bool, optional
+            If True, the rtol value will be estimated based on the provided noise 
+            level or signal, which can be passed through **kwargs. If False, 
+            the default rtol value will be used. The default is True.
+        **kwargs :
+            Additional key-word arguments to be used for the rtol estimation.
+            The keys 'signal' and 'noise_level' can be provided to estimate 
+            the rtol value based on the signal coherence or noise level.
 
         Returns
         -------
@@ -492,7 +552,7 @@ class Measurement_Matrices:
             raise ValueError(f"SVD failed: {e}")
 
         ar_matrix = np.random.random(size=(self.number_samples, self.m))
-        mu_opt = self._welch_bound()
+        mu_opt = self.welch_bound()
 
         a = np.zeros((self.number_samples, self.n), dtype=complex)
         b = np.zeros((self.n, self.m), dtype=complex)
@@ -527,7 +587,6 @@ class Measurement_Matrices:
 
 
     # the pseudo inverse makes this method infeasible for large problems
-    # and seems to performs badly in tests with noise
     # hard to compute for large matrices, due to the gram matrix
     def xsfz(self, mu=None, beta=0.55, max_iter=10, rtol=8e-4, rtol_estimate=True, **kwargs):
         """
@@ -538,23 +597,29 @@ class Measurement_Matrices:
 
         Parameters
         ----------
-        mu : float
-            Wanted coherence, if None is provided the sub optimal welch bound will
+        mu : float, optional
+            Desired coherence. If None is provided, the sub-optimal Welch bound will
             be used. The default is None.
         beta : float, optional
             Weight, where (1 - beta) is the fraction between old_gram matrix and
             the new gram matrix. The default is 0.55.
         max_iter : int, optional
-            Maximal number of iterations. The default is 10.
+            Maximum number of iterations. The default is 10.
         rtol : float, optional
             Cutoff factor for 'small' singular values. In lstsq, singular values
             less than rtol*largest_singular_value will be considered as zero.
-            If 0., the default value max(M, N) * eps is passed to lstsq where
-            eps is the corresponding machine precision value of the datatype of a.
-            I recomend setting rtol to 0.0 for signal to noise ratios above 1000,
-            in this way, way sparser solutions can be found !!!
+            If 0., the default value max(M, N) * eps is passed to lstsq, where
+            eps is the corresponding machine precision of the datatype of a.
             The default is 8e-4.
-
+        rtol_estimate : bool, optional
+            If True, the rtol value will be estimated based on the provided noise 
+            level or signal, which can be passed through **kwargs. If False, 
+            the default rtol value will be used. The default is True.
+        **kwargs :
+            Additional key-word arguments to be used for the rtol estimation.
+            The keys 'signal' and 'noise_level' can be provided to estimate 
+            the rtol value based on the signal coherence or noise level.
+ 
         Returns
         -------
         ar_matrix : ndarray
@@ -572,7 +637,7 @@ class Measurement_Matrices:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
 
         ar_matrix = np.random.random(size=(self.number_samples, self.m))
-        mu_opt = self._welch_bound()
+        mu_opt = self.welch_bound()
 
         if mu is None:
             mu = mu_opt + 1e-3
@@ -604,7 +669,8 @@ class Measurement_Matrices:
 
     @staticmethod
     def _normalize_matrix(a, norm=2):
-        """ Normalizes all matrix columns.
+        """
+        Normalizes all matrix columns.
 
         Parameters
         ----------
@@ -631,17 +697,14 @@ class Measurement_Matrices:
         return np.divide(a, norms, out=np.zeros_like(a, dtype=complex), where=norms != 0)
 
 
-    def _welch_bound(self):
-        """
-        Computes the Welch bound.
-        """
+    @property
+    def welch_bound(self):
+        """ Computes the Welch bound."""
         return np.sqrt((self.n - self.number_samples)/(self.number_samples*(self.n-1)))
 
 
-    def __estimate_rtol_adaptive(self, rtol_default=1e-8, signal=None, noise_std=None):
-        """
-        Smart rtol selection considering full system.
-        """
+    def __estimate_rtol_adaptive(self, rtol_default=1e-8, signal=None, noise_level=None):
+        """ Smart rtol selection considering full system."""
         try:
             _, s, _ = scipy.linalg.svd(self.a_tr, lapack_driver='gesvd')
             if np.max(s) == 0:
@@ -660,8 +723,8 @@ class Measurement_Matrices:
             coherence = np.linalg.norm(signal_proj) / np.linalg.norm(signal)
             rtol_estimate = s_max / (cond_number * (1 + coherence)) # Coherence dependent precision
 
-        elif noise_std is not None: # Use noise level
-            rtol_estimate = (9 * noise_std) / s_max # 3-sigma
+        elif noise_level is not None: # Use noise level
+            rtol_estimate = (9 * noise_level) / s_max # 3-sigma
         else:
             rtol_estimate = 1 / cond_number * 0.1 # Conservative default
 
@@ -669,7 +732,7 @@ class Measurement_Matrices:
 
 
     def __validate_parameters(self, **kwargs):
-        """Validate common parameters across methods."""
+        """ Validate common parameters across methods."""
         if self.number_samples <= 0 or self.number_samples > self.a_tr.shape[0]:
             raise ValueError(f"The number samples must be between 0 and {self.a_tr.shape[0]}, but {self.number_samples} was provided.")
 

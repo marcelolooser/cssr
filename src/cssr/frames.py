@@ -1,10 +1,10 @@
 """
-The frames module of the cssr package provides a class for constructing frames, 
-i.e. (overcomplete) dictionaries for super-resolution via compressive sensing. 
-The Frames class allows users to create various types of frames that can be used 
-as sparsifying bases for signal processing tasks. They are a critical component 
-of sensing matrices. Currently the class includes frames such as Heaviside, 
-Gaussian, and Cauchy, as well as their overcomplete versions, etc. 
+The frames module of the cssr package provides a class for constructing frames,
+i.e. (overcomplete) dictionaries for super-resolution via compressive sensing.
+The Frames class allows users to create various types of frames that can be used
+as sparsifying bases for signal processing tasks. They are a critical component
+of sensing matrices. Currently the class includes frames such as Heaviside,
+Gaussian, and Cauchy, as well as their overcomplete versions, etc.
 
 
 Created on Fri Feb 12 19:47:33 2021
@@ -14,19 +14,22 @@ Created on Fri Feb 12 19:47:33 2021
 import scipy
 import numpy as np
 import pylab as py
-import scipy.signal
 from functools import lru_cache
 
 # =============================================================================
 
 class Frames:
-    """Constructs frames, i.e. (overcomplete) dictonaries for super-resolution
-    via compressive sensig.
+    """
+    The Frames class provides methods to construct various types of frames 
+    ((overcomplete) dictionaries) for signal processing tasks. These frames can 
+    be used as sparsifying bases for compressive sensing applications and are 
+    essential for constructing sensing matrices.
+
 
     Parameters
     ----------
     x_signal : array like
-        X component of the signal.
+        X-component of the signal.
     """
 
     a_frame = 0 # in order to use dynamical inheritance
@@ -51,8 +54,9 @@ class Frames:
 
 
     def heaviside(self, box_width): # if box_width 1, dirac frame
-        """Heaviside frame, vectors (atoms) consist of #box_with 1's the rest
-        of the vector is filled with zeros.
+        """
+        Heaviside frame, vectors (atoms) consist of binary entries (1's and 0's).
+        The box_width parameter determines the width of the peaks.
 
         Paremeters:
         -----------
@@ -64,6 +68,7 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
         for j in range(1, self.signal_length+1):
             if j <= box_width:
                 index = range(0, j)
@@ -75,22 +80,23 @@ class Frames:
 
 
     def heaviside_overcomplete(self, box_width_interval=None):
-        """Heaviside frame, vectors (atoms) consist of #box_with 1's the rest
-        of the vector is filled with zeros, given an interval of wanted box
-        widths.
+        """
+        Heaviside frame, vectors (atoms) consist of binary entries (1's and 0's).
+        The box_width_interval parameter determines the range of peak widths.
 
         Paremeters:
         -----------
         box_width_interval : list, optional
-            Interval of box width for the dictionary with two value [low, high].
-            If None a dictionary from 1 up to the signal length gets constructed.
-            The default is None.
+            Interval as a list of two integers [low, high] representing the box
+            range for the frame. If None, a overcomplete dictionary with box widths ranging 
+            from 1 to the signal length gets constructed. The default is None.
 
         Returns
         -------
         a_frame : ndarray
             Sparsifying basis.
         """
+
         box_width_interval = [1, self.signal_length] if box_width_interval is None else box_width_interval
         delta = box_width_interval[1] - box_width_interval[0] + 1
 
@@ -108,7 +114,8 @@ class Frames:
 
     @lru_cache # helper method for heaviside_overcomplete dictionary
     def __index_calc(self, box_width, start=0):
-        """ Helper function for heaviside overcomplete.
+        """
+        Helper function for heaviside_overcomplete.
 
         Parameters
         ----------
@@ -132,7 +139,8 @@ class Frames:
 
 
     def gaussian(self, sigma):
-        """Gaussian frame, the vectors (atoms) are normal PDFs.
+        """
+        Gaussian frame, the vectors (atoms) are normal PDFs.
 
         Paremeters:
         -----------
@@ -144,6 +152,7 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
         for i, mu in enumerate(self.x):
             gdist = scipy.stats.norm.pdf(self.x, mu, sigma).reshape((self.signal_length,))
             self.a_frame[:,i] = gdist/np.linalg.norm(gdist, 2)
@@ -151,22 +160,23 @@ class Frames:
 
 
     def gaussian_overcomplete(self,  sigma_interval=None, step_size=1):
-        """Gaussian frame, the vectors (atoms) are normal PDFs. The expectation
-        value is given by the values in x and the std given in discret integer
-        steps ranging from 1 to signal length.
+        """
+        Gaussian frame, the vectors (atoms) are normal PDFs. The list expectation
+        values is given by the entries in x, while the list of equidistant standard 
+        deviations is determined through the sigma_interval and step_size. 
 
         Paremeters:
         -----------
         sigma_interval : list, optional
-            If None integervalues from 1 to signal length will be used for
-            the standard deviations of the distributions. Else a list with two
-            values must be passed, where the first one is the lowest standard
-            deviation and the second the highest standard deviation. The de-
-            fault is None.
+            If None, integers with values ranging from 1 to the signal length 
+            will be used to determine a list of standard deviations of the 
+            distributions. Else, a list of two floats must be passed. The first 
+            entry is the lowest standard deviation and the second the highest 
+            standard deviation. The default is None.
         step_size : float, optional
-            The step_size is used to generate a list out of the sigma_interval
-            values with (sigma_interval[1] - sigma_interval[0])/step_size length.
-            The default is 1.
+            A step size used to generate a list of equidistantly spaced standard 
+            deviations from the sigma_interval values, i.e., (sigma_interval[1] - 
+            sigma_interval[0])/step_size length. The default is 1.
 
         Returns
         -------
@@ -186,32 +196,12 @@ class Frames:
         return self.a_frame
 
 
-    @staticmethod
-    def __cauchy_pdf(x, mu, gamma):
-        """ Cauchy PDF.
-
-        Paremeters:
-        -----------
-        x:
-            Function value.
-        mu:
-            Expectation value.
-        gamma:
-            Half width at half maximum (HWHM).
-        Returns:
-        -------
-        PDF value at x.
-        """
-        return (1/np.pi)*(gamma/((x - mu)**2 + gamma**2))
-
-
     def cauchy(self, gamma):
-        """Cauchy frame, the vectors (atoms) are cauchy PDFs.
+        """
+        Cauchy (Lorentz) frame, the vectors (atoms) are cauchy PDFs.
 
         Paremeters:
         -----------
-        x:
-            X-Axis vector of the data.
         gamma:
             Half width at half maximum (HWHM).
 
@@ -220,27 +210,29 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
         for i, mu in enumerate(self.x):
-            cdist = self.__cauchy_pdf(self.x, mu, gamma).reshape((self.signal_length,))
+            cdist = self.__cauchy_pdf(mu, gamma).reshape((self.signal_length,))
             self.a_frame[:,i] = cdist/np.linalg.norm(cdist, 2)
         return self.a_frame
-
+    
 
     def cauchy_overcomplete(self, gamma_interval=None, step_size=1):
-        """Cauchy frame, the vectors (atoms) are cauchy PDFs. The expectation
-        value is given by the values in x and the std given in discret integer
-        steps ranging from 1 to signal length.
+        """
+        Cauchy (Lorentz) frame, the vectors (atoms) are Cauchy (Lorentz) PDFs. The list expectation
+        values is given by the entries in x, while the list of half width at half maximas is 
+        determined through the gamma_interval and step_size.
 
         Paremeters:
         -----------
         gamma_interval : list, optional
-            If None integervalues from 1 to signal length will be used for
-            the Half width at half maximum (HWHM) of the distributions. Else a
+            If None, integer values from 1 to the signal length will be used for
+            the half width at half maximum (HWHM) of the distributions. Else a
             list with two values must be passed, where the first one is the lowest
             HWHM and the second the highest HWHM.
             The default is None.
         step_size : float, optional
-            The step_size is used to generate a list out of the gamma_interval
+            A step size used to generate a list out of the equidistantly spaced HWHM
             values with (gamma_interval[1] - gamma_interval[0])/step_size length.
             The default is 1.
 
@@ -249,6 +241,7 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
         if gamma_interval is None:
             gamma_interval = [1, self.signal_length]
         steps = (gamma_interval[1] - gamma_interval[0])/step_size
@@ -256,19 +249,39 @@ class Frames:
         type(self).a_frame = np.zeros((self.signal_length, self.signal_length*n), dtype=complex)
         for j, gamma in enumerate(py.arange(gamma_interval[0], gamma_interval[1], step_size)):
             for i, mu in enumerate(self.x):
-                cdist = self.__cauchy_pdf(self.x, mu, gamma)
+                cdist = self.__cauchy_pdf(mu, gamma)
                 self.a_frame[:,j*self.signal_length + i] = cdist/np.linalg.norm(cdist, 2)
         return self.a_frame
 
 
+    def __cauchy_pdf(self, mu, gamma):
+        """
+        Cauchy (Lorentz) PDF.
+
+        Paremeters:
+        -----------
+        mu:
+            Expectation value.
+        gamma:
+            Half width at half maximum (HWHM).
+            
+        Returns:
+        -------
+        PDF value at x.
+        """
+        return (1/np.pi)*(gamma/((self.x - mu)**2 + gamma**2))
+
+
     def fourier(self):
-        """DFT matrix, centered around zero spatial frequency.
+        """
+        DFT frame, centered around the spatial frequency zero.
 
         Returns
         -------
         a_frame : ndarray
             Sparsifying basis.
         """
+
         self.a_frame = scipy.fft.fftshift(scipy.linalg.dft(self.signal_length))
         return self.a_frame
 
