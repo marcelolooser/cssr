@@ -208,7 +208,7 @@ class MeasurementMatrices:
            pp. 999–1009, Apr. 2012, doi: 10.1016/j.sigpro.2011.10.012.
         """
         ar_matrix = np.random.random(size=(self.number_samples, self.m))
-        mu_opt = self.welch_bound()
+        mu_opt = self.welch_bound
         if mu is None:
             mu = mu_opt + 1e-3
         else:
@@ -259,7 +259,7 @@ class MeasurementMatrices:
         """
         self.a_tr = self._normalize_matrix(self.a_tr, 1)
         ar_matrix = np.sqrt(1/self.number_samples) * np.random.randn(self.number_samples, self.m)
-        mu_opt = self.welch_bound()
+        mu_opt = self.welch_bound
 
         if mu is None:
             mu = mu_opt + 1e-3
@@ -455,7 +455,7 @@ class MeasurementMatrices:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
 
         ar_matrix = np.random.random(size=(self.number_samples, self.m)).astype(complex)
-        mu_opt = self.welch_bound()
+        mu_opt = self.welch_bound
 
         if mu is None:
             mu = mu_opt + 1e-3
@@ -552,7 +552,7 @@ class MeasurementMatrices:
             raise ValueError(f"SVD failed: {e}")
 
         ar_matrix = np.random.random(size=(self.number_samples, self.m))
-        mu_opt = self.welch_bound()
+        mu_opt = self.welch_bound
 
         a = np.zeros((self.number_samples, self.n), dtype=complex)
         b = np.zeros((self.n, self.m), dtype=complex)
@@ -637,7 +637,7 @@ class MeasurementMatrices:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
 
         ar_matrix = np.random.random(size=(self.number_samples, self.m))
-        mu_opt = self.welch_bound()
+        mu_opt = self.welch_bound
 
         if mu is None:
             mu = mu_opt + 1e-3
@@ -692,9 +692,6 @@ class MeasurementMatrices:
         result = np.divide(a, norms, out=np.zeros_like(a, dtype=complex), where=norms != 0) # Divide with zero protection
         result = np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0)  # Ensure no NaN columns remain
         return result
-
-        norms = np.linalg.norm(a, ord=norm, axis=0)
-        return np.divide(a, norms, out=np.zeros_like(a, dtype=complex), where=norms != 0)
 
 
     @property
