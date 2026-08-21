@@ -32,8 +32,6 @@ def _boost_superresolver(func):
     ----------
     func : callable
         LASSO based l1 sparse solver.
-    max_iter : int, optional
-        Maximal number of iterations. The default is 20.
 
     Reference
     ---------
@@ -56,12 +54,32 @@ def _boost_superresolver(func):
             Hyperparameter to mitigate "overfitting". The booster can be 
             deactivated by setting rho to zero. The default is None.
         max_iter :  int, optional
-            Maximal number of iterations. The default is 30.
+            Maximum number of iterations. The default is 30.
         atol : float, optional
             Absolute tolerance. The default is 1e-5.
         **kwargs :
             Additional key-word arguments to be passed to the superresolver.
         """
+
+        if not isinstance(eta, (int, float)):
+            raise ValueError("eta must be a non-negative float.")
+        elif eta < 0:
+            raise ValueError("eta must be a non-negative float.")
+        
+        if isinstance(rho, (int, float)):
+            if rho < 0:
+                raise ValueError("rho must be a non-negative float.")
+            
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 1:
+            raise ValueError("max_iter must be a positive integer.")
+
+        if not isinstance(atol, (int, float)):
+            raise ValueError("atol must be a non-negative float.")
+        elif atol < 0:
+            raise ValueError("atol must be a non-negative float.")
+        
         if rho:
             pass
         else:
@@ -122,6 +140,22 @@ class Superresolvers:
     """
 
     def __init__(self, a0, a_tr, ar):
+
+        if not isinstance(a0, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1):
+            raise ValueError("The first argument must be an array of shape (n, m) with m > 1.")
+
+        if not isinstance(a_tr, np.ndarray):
+            raise ValueError("The second argument must be an array.")
+        elif a_tr.ndim == 1 or (a_tr.ndim == 2 and a_tr.shape[1] == 1):
+            raise ValueError("The second argument must be an 2D array of shape (n, m) with m > 1.")
+
+        if not isinstance(ar, np.ndarray):
+            raise ValueError("The third argument must be an array.")
+        elif ar.ndim == 1 or (ar.ndim == 2 and ar.shape[1] == 1):
+            raise ValueError("The third argument must be an array of shape (n, m) with m > 1.")
+
         self.a0 = a0
         self.n = a0.shape[1] # number of columns
         self.m = ar.shape[0]
@@ -169,6 +203,11 @@ class Superresolvers:
            decomposition by basis pursuit**," SIAM Review, vol. 43, no. 1,
            pp. 129–159, 2001, doi: 10.1137/S003614450037906X
         """
+
+        if not isinstance(y_signal, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
 
         y_t = y_signal.reshape((-1,1))
         _, axes3d = y_t.shape
@@ -218,6 +257,16 @@ class Superresolvers:
            pp. 129–159, 2001, doi: 10.1137/S003614450037906X
         """
 
+        if not isinstance(y_signal, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+
+        if not isinstance(noise_level, (int, float)):
+            raise ValueError("The second argument must be a float or an integer.")
+        elif noise_level < 0:
+            raise ValueError("The second argument must be a non-negative float or integer.")
+
         y_t = y_signal.reshape((-1,1))
         _, axes3d = y_t.shape
 
@@ -250,10 +299,10 @@ class Superresolvers:
             Hyperparameter for the LASSO optimization. If None, lam is 5% of the 
             magnitude of a_tr.T*y_signal. The default is None.
         l : int, optional
-            Maximal number of items that will be included in the active set of atoms
+            Maximum number of items that will be included in the active set of atoms
             (the active set grows over each iteration). The default is 25.
-        max_iter : int optional
-            Maximal number of iterations. The default is 20.
+        max_iter : int, optional
+            Maximum number of iterations. The default is 20.
         solver : str, optional
             Convex solver used in the package cvxpy. The default is "CLARABEL".
 
@@ -266,13 +315,34 @@ class Superresolvers:
             Note, y_sparse_hat is in general of larger in dimension then the
             reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
-        Refernces
-        ---------
+        References
+        ----------
         .. [1] P. R. Gill, A. Wang and A. Molnar, "**The In-Crowd Algorithm for
            Fast Basis Pursuit Denoising**," in IEEE Transactions on Signal
            Processing, vol. 59, no. 10, pp. 4595-4605, Oct. 2011,
            doi: 10.1109/TSP.2011.2161292.
         """
+
+        if not isinstance(y_signal, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+
+        if lam is not None:
+            if not isinstance(lam, (int, float)):
+                raise ValueError("lam must be a float or an integer.")
+            elif lam < 0:
+                raise ValueError("lam must be a non-negative float or integer.")
+            
+        if not isinstance(l, int):
+            raise ValueError("l must be a positive integer.")
+        elif l < 0:
+            raise ValueError("l must be a positive integer.")
+
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 0:
+            raise ValueError("max_iter must be a positive integer.")
 
         y_t = y_signal.reshape((-1,1))
         _, axes3d = y_t.shape
@@ -358,6 +428,32 @@ class Superresolvers:
            and reconstruction of sparse sub-wavelength images**,” Optics Express,
            vol. 17, no. 26, pp. 23920–23946, 2009, doi: 10.1364/OE.17.023920.
         """
+
+        if not isinstance(y_signal, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+
+        if not isinstance(noise_level, (int, float)):
+            raise ValueError("The second argument must be a float or an integer.")
+        elif noise_level < 0:
+            raise ValueError("The second argument must be a non-negative float or integer.")
+
+        if not isinstance(nnw, int):
+            raise ValueError("nnw must be a positive integer.")
+        elif nnw < 0:
+            raise ValueError("nnw must be a positive integer.")
+
+        if not isinstance(zeta0, (int, float)):
+            raise ValueError("zeta0 must be a non-negative float.")
+        elif zeta0 < 0:
+            raise ValueError("zeta0 must be a non-negative float.")
+
+        if not isinstance(dzeta, (int, float)):
+            raise ValueError("dzeta must be a non-negative float.")
+        elif dzeta < 0:
+            raise ValueError("dzeta must be a non-negative float.")
+
         y_t = y_signal.reshape((-1,1))
         _, axes3d = y_t.shape
 
@@ -449,6 +545,37 @@ class Superresolvers:
            and reconstruction of sparse sub-wavelength images**,” Optics Express,
            vol. 17, no. 26, pp. 23920–23946, 2009, doi: 10.1364/OE.17.023920.
         """
+
+        if not isinstance(y_signal, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+
+        if lam is not None:
+            if not isinstance(lam, (int, float)):
+                raise ValueError("lam must be a float or an integer.")
+            elif lam < 0:
+                raise ValueError("lam must be a non-negative float or integer.")
+
+        if not isinstance(nnw, int):
+            raise ValueError("nnw must be a positive integer.")
+        elif nnw < 0:
+            raise ValueError("nnw must be a positive integer.")
+
+        if not isinstance(zeta0, (int, float)):
+            raise ValueError("zeta0 must be a non-negative float.")
+        elif zeta0 < 0:
+            raise ValueError("zeta0 must be a non-negative float.")
+
+        if not isinstance(dzeta, (int, float)):
+            raise ValueError("dzeta must be a non-negative float.")
+        elif dzeta < 0:
+            raise ValueError("dzeta must be a non-negative float.")
+        
+        if not isinstance(y_signal, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
 
         y_t = y_signal.reshape((-1,1))
         _, axes3d = y_t.shape

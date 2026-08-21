@@ -30,7 +30,7 @@ class Filters:
     Parameters
     ----------
     a0 : array like
-        Sparsifying matrix (or just datapoints).
+        Sparsifying matrix (or signal).
     x_signal : array like
         X-components of the signal.
     y_signal : array like, optional
@@ -38,43 +38,86 @@ class Filters:
         and a rough estimation of the cutoff frequency is known. The latter 
         must be provided through the optional parameter threshold_level. 
         The default is None.
-    cutoff : float, optional
-        "Cutoff" frequency; for the thermal and instrumental low-pass filters, 
-        this parameter represents the temperature and energy cutoff, 
+    cutoff : float or list, optional
+        Cutoff "frequency" of filter (expressed in the same units as the fourier 
+        transform of x_signal) or a list of cutoff "frequencies" (that is, band 
+        edges) for a band-pass or band-stop filters. The latter option is used 
+        for FIR and Butterworth filters. For the thermal and instrumental low-pass 
+        filters, this parameter represents the temperature and energy cutoff, 
         respectively. If no cuttoff is provided, a rough estimation is made.
+        The default is None.
     threshold_level : float, optional
         If cutoff is None, threshold_level will be used to make a rough estimate 
-        of the cutoff frequency using threshold_level*max(magnitude of y_fft). 
-        The default is 2e-2.
-    sense_mat : boolean, optional
-        If instead of a matrix an array should be filtered set sense_mat to False.
-        The default is True.
+        of the cutoff "frequency" using threshold_level*max(magnitude of y_fft),
+        and it is assumed that the used filter is a low-pass filter.
+        (This is an experimental feature.) The default is 2e-2.
+    filter_signal : boolean, optional
+        If True, a filter will be applied to the signal a0. If False, 
+        a filter will be applied to the sparsifying matrix a0. 
+        The default is False.
     """
 
-    def __init__(self, a0, x_signal, y_signal=None, cutoff=None, threshold_level=2e-2, sense_mat=True):
-        self.a_tr = a0.copy()
-        self.cutoff = cutoff
-        self.sense_mat = sense_mat
-        self.x = x_signal.reshape((-1,1))
-        self.y = y_signal
+    def __init__(self, a0, x_signal, cutoff=None, y_signal=None,  threshold_level=2e-2, filter_signal=False):
 
-        if self.sense_mat is False:
-            try:
-                self.a_tr = self.a_tr.reshape((-1,))
-                if len(self.a_tr) != a0.shape[0]:
-                    raise AttributeError
-            except AttributeError:
-                raise AttributeError("If sense_mat is False, a0 must be\n"\
-                                     "an array of shape (n,) or (n,1).")
-        if cutoff is None:
-            try:
-                self.y = y_signal.reshape((-1,1))
-            except AttributeError:
-                raise AttributeError("If no cutoff is provided, a naive search\n"\
-                                     "will be conducted through the optional parameters\n"\
-                                     "y_signal and threshold_level but no y_signal was provided.\n"\
-                                     "Please provide y_signal or set\n"\
-                                     "a cutoff.")
+        if not isinstance(filter_signal, bool):
+            raise TypeError("filter_signal must be a boolean.")
+
+        if not isinstance(a0, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        else:
+            self.a_tr = a0.copy()
+            if filter_signal:
+                if not (self.a_tr.ndim == 1 or (self.a_tr.ndim == 2 and self.a_tr.shape[1] == 1)):
+                    raise ValueError("The first argument must be an array of shape (n,) "\
+                                    "or (n,1) if filter_signal is True.")
+                else: 
+                    self.a_tr = self.a_tr.reshape((-1,))
+            elif self.a_tr.ndim == 1 or (self.a_tr.ndim == 2 and self.a_tr.shape[1] == 1):
+                    raise ValueError("The first argument must be an array of shape (n, m) "\
+                                    "if filter_signal is False.")
+
+        if not isinstance(x_signal, np.ndarray):
+            raise ValueError("The second argument must be an array.")
+        elif not (x_signal.ndim == 1 or (x_signal.ndim == 2 and x_signal.shape[1] == 1)):
+            raise ValueError("The second argument must be an array of shape (n,) or (n,1).")
+
+        if cutoff is not None:
+            self.cutoff_detector_estimate = False
+            if isinstance(cutoff, (float, int)):
+                if cutoff <= 0:
+                    raise ValueError("cutoff must be a positive non-zero value.")
+            elif isinstance(cutoff, list):
+                if len(cutoff) != 2:
+                    raise ValueError("If cutoff is provided as a list, it must contain "\
+                                     "exactly two values.")
+                elif cutoff[0] >= cutoff[1]:
+                    raise ValueError("If cutoff is provided as a list, its entries must be "\
+                                     "sorted in ascending order.")
+            if y_signal is not None:
+                print("Warning: y_signal is provided but cutoff is not None; y_signal will "\
+                      "be ignored.")
+                
+        elif cutoff is None:
+            if (self.a_tr.ndim == 1 or (self.a_tr.ndim == 2 and self.a_tr.shape[1] == 1)):
+                raise ValueError("Missing required third (keyword) argument cutoff.")
+            elif isinstance(y_signal, np.ndarray):
+                if (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+                    self.y = y_signal.reshape((-1,1))
+                else:
+                    raise ValueError("If cutoff is None, y_signal must be provided as an array of shape (n,) or (n,1) "\
+                                     "in order to make a crude estimation of the cutoff \"frequency\". Else, provide a cutoff.")
+            else:
+                raise ValueError("If cutoff is None, y_signal must be provided as an array of shape (n,) or (n,1) "\
+                                 "in order to make a crude estimation of the cutoff \"frequency\". Else, provide a cutoff.")
+
+        if not (0 < threshold_level < 1):
+            raise ValueError("Threshold level must be a positive value between 0 and 1.")
+
+        self.cutoff = cutoff
+        self.filter_signal = filter_signal
+        self.y = y_signal
+        self.x = x_signal.reshape((-1,1))
+
         self.__x_fft()
         self.__low_pass_detector(threshold_level=threshold_level) #will be modified in later versions
 
@@ -122,7 +165,7 @@ class Filters:
         return 1*(abs(self.x_fft) > abs(self.x_fft).max() - self.cutoff)
 
 
-    def fir_lowpass_filter(self, numtabs=4, pass_zero="lowpass"):
+    def fir_filter(self, numtabs=4, pass_zero="lowpass"):
         """
         Finite impulse response (FIR) filter.
 
@@ -145,12 +188,12 @@ class Filters:
             A FIR filter convoluted with a0.
         """
 
-        tabs = self.__fir_lowpass(numtabs, pass_zero)
+        tabs = self.__fir(numtabs, pass_zero)
         self.a_tr = scipy.signal.filtfilt(tabs, 1, self.a_tr, padlen=0) # foward-backwards filtering
         return self.a_tr
 
 
-    def __fir_lowpass(self, numtabs=4, pass_zero="lowpass"):
+    def __fir(self, numtabs=4, pass_zero="lowpass"):
         """
         This function computes the coefficients of a finite impulse response
         filter. For more information see documentation "firwin" in scipy.signal.
@@ -174,14 +217,23 @@ class Filters:
             An array of coefficients for the FIR filter.
         """
 
+        if pass_zero in ["bandpass", "bandstop"]:
+            if self.cutoff_detector_estimate:
+                print("Warning: pass_zero is set to \"bandpass\" or \"bandstop\", but the estimated cutoff "\
+                     "is presumed to characterize a low-pass filter. pass_zero will be set to \"lowpass\".")
+                pass_zero = "lowpass"
+            else:
+                if not isinstance(self.cutoff, list):
+                    raise ValueError("If pass_zero is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+
         fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
         nyq = 0.5*fs # nyquist frequency
-        cutoff = self.cutoff / nyq
+        cutoff = self.cutoff / nyq if isinstance(self.cutoff, (float, int)) else [c/nyq for c in self.cutoff]
         tabs = scipy.signal.firwin(numtabs, cutoff, pass_zero=pass_zero)
         return tabs
 
 
-    def butter_lowpass_filter(self, order=4, btype="lowpass"):
+    def butter_filter(self, order=4, btype="lowpass"):
         """
         Butterworth filter.
 
@@ -199,14 +251,15 @@ class Filters:
             A Butterworth filter convoluted with a0.
         """
 
-        sos = self.__butter_lowpass(order, btype)
+        sos = self.__butter(order, btype)
         self.a_tr = scipy.signal.sosfiltfilt(sos, self.a_tr, padlen=0) # foward-backwards filtering
         return self.a_tr
 
 
-    def __butter_lowpass(self, order=4, btype="lowpass"):
+    def __butter(self, order=4, btype="lowpass"):
         """
-        Butterworth filter implemented via the scipy signal package.
+        Butterworth filter implemented via the scipy signal package. 
+        For more information see documentation "butter" in scipy.signal.
 
         Parameters
         ----------
@@ -222,9 +275,18 @@ class Filters:
             Second-order sections representation of the IIR filter.
         """
 
+        if btype in ["bandpass", "bandstop"]:
+            if self.cutoff_detector_estimate:
+                print("Warning: btype is set to \"bandpass\" or \"bandstop\", but the estimated cutoff "\
+                     "is presumed to characterize a low-pass filter. btype will be set to \"lowpass\".")
+                btype = "lowpass"
+            else:
+                if not isinstance(self.cutoff, list):
+                    raise ValueError("If btype is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+
         fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
         nyq = 0.5*fs # nyquist frequency
-        cutoff = self.cutoff / nyq
+        cutoff = self.cutoff / nyq if isinstance(self.cutoff, (float, int)) else [c/nyq for c in self.cutoff]
         sos = scipy.signal.butter(order, cutoff, btype=btype, output="sos")
         return sos
 
@@ -342,23 +404,26 @@ class Filters:
         Parameters
         ----------
         coeff : ndarray
-            DESCRIPTION.
+            Coefficients of the filter.
+
         Returns
         -------
         None.
         """
 
-        if self.sense_mat:
+        if not self.filter_signal:
             for i in range(self.a_tr.shape[1]):
                 self.a_tr[:,i] = scipy.signal.convolve(coeff, self.a_tr[:,i], mode="same")
         else:
             self.a_tr = scipy.signal.convolve(coeff, self.a_tr, mode="same")
 
 
+    # experimental feature, will be modified in later versions
     def __low_pass_detector(self, threshold_level=2e-2):
         """
-        Detects the lowest passed frequency, provided the threshold (or cut-
-        off) is suited. This function will be modified in later versions.
+        Detects the lowest passed frequency, provided the threshold is 
+        suited, presuming the signal was band-limited by low-pass filtering. 
+        This function will be modified in later versions.
 
         Parameters
         ----------
@@ -366,6 +431,7 @@ class Filters:
             Threshold as a fraction of maximal amplitude of the fourier trans-
             formed signal. This is used to find a rough estimation of the cutoff
             frequency. (Will be modified in later versions). The default is 2e-2.
+
         Returns
         -------
         None.
@@ -379,6 +445,7 @@ class Filters:
             threshold = max(abs(y_fft))*threshold_level
             cuttoff_arg = next(i for i, item in enumerate(abs(y_fft) >= threshold) if item)
             self.cutoff = abs(self.x_fft[cuttoff_arg])
+            self.cutoff_detector_estimate = True
 
 
     def __x_fft(self):

@@ -25,15 +25,19 @@ class Frames:
     be used as sparsifying bases for compressive sensing applications and are 
     essential for constructing sensing matrices.
 
-
     Parameters
     ----------
     x_signal : array like
         X-component of the signal.
     """
 
-    a_frame = 0 # in order to use dynamical inheritance
+    a_frame = 0 # dynamically inherited
     def __init__(self, x_signal):
+
+        if not isinstance(x_signal, np.ndarray):
+            raise ValueError("The first argument must be an array.")
+        elif not (x_signal.ndim == 1 or (x_signal.ndim == 2 and x_signal.shape[1] == 1)):
+            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
 
         self.signal_length = x_signal.shape[0]
         self.x = x_signal.reshape((-1,))
@@ -58,9 +62,9 @@ class Frames:
         Heaviside frame, vectors (atoms) consist of binary entries (1's and 0's).
         The box_width parameter determines the width of the peaks.
 
-        Paremeters:
-        -----------
-        box_width:
+        Parameters
+        ----------
+        box_width: int
             Width of the peaks.
 
         Returns
@@ -68,6 +72,11 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
+        if not isinstance(box_width, int):
+            raise ValueError("box_width must be an integer.")
+        elif not (1 < box_width < self.signal_length):
+            raise ValueError("box_width must be between 1 and the signal length.")
 
         for j in range(1, self.signal_length+1):
             if j <= box_width:
@@ -79,17 +88,20 @@ class Frames:
         return self.a_frame
 
 
-    def heaviside_overcomplete(self, box_width_interval=None):
+    def heaviside_overcomplete(self, box_width_interval=None, step_size=1):
         """
         Heaviside frame, vectors (atoms) consist of binary entries (1's and 0's).
         The box_width_interval parameter determines the range of peak widths.
 
-        Paremeters:
-        -----------
+        Parameters
+        ----------
         box_width_interval : list, optional
             Interval as a list of two integers [low, high] representing the box
             range for the frame. If None, a overcomplete dictionary with box widths ranging 
             from 1 to the signal length gets constructed. The default is None.
+        step_size : int, optional
+            A step size used to generate a list of equidistantly spaced box widths
+            values from the box_width_interval. The default is 1.
 
         Returns
         -------
@@ -97,10 +109,27 @@ class Frames:
             Sparsifying basis.
         """
 
-        box_width_interval = [1, self.signal_length] if box_width_interval is None else box_width_interval
+        if box_width_interval is not None:
+            if not isinstance(box_width_interval, list):
+                raise ValueError("box_width_interval must be a list.")
+            elif not len(box_width_interval) == 2:
+                raise ValueError("box_width_interval must be a list of two integers.")
+            elif not all(isinstance(i, int) for i in box_width_interval):
+                raise ValueError("box_width_interval must be a list of two integers.")
+            elif not (box_width_interval[0] < box_width_interval[1]):
+                raise ValueError("box_width_interval must be a list of two integers in ascending order.")
+            elif not (1 < box_width_interval[0] < box_width_interval[1] < self.signal_length):
+                raise ValueError("box_width_interval values must be between 1 and the signal length.")
+
+        if not isinstance(step_size, int):
+            raise ValueError("step_size must be an integer.")
+        elif not (1 <= step_size < box_width_interval[1] - box_width_interval[0]):
+            raise ValueError("step_size must be between 1 and the box_width_interval size.")
+
+        box_width_interval = [1, self.signal_length] if box_width_interval is None else sorted(box_width_interval)
         delta = box_width_interval[1] - box_width_interval[0] + 1
 
-        corr = sum(range(box_width_interval[0]-1, box_width_interval[1]))
+        corr = sum(range(box_width_interval[0]-1, box_width_interval[1], step_size))
         type(self).a_frame = np.zeros((self.signal_length, delta*self.signal_length - corr), dtype=complex) # shape[1] = n(n+1)/2 - 1, spark = 3
         box_width = box_width_interval[0]
         for j in range(self.a_frame.shape[1]):
@@ -108,7 +137,7 @@ class Frames:
             index = range(j + temp_correction, j + temp_correction + box_width)
             self.a_frame[index, j] = 1/np.sqrt(box_width)
             if (j+1) + temp_correction == self.signal_length - (box_width-1):
-                box_width += 1
+                box_width += step_size
         return self.a_frame
 
 
@@ -142,8 +171,8 @@ class Frames:
         """
         Gaussian frame, the vectors (atoms) are normal PDFs.
 
-        Paremeters:
-        -----------
+        Parameters
+        ----------
         sigma : float
             Standard deviation.
 
@@ -153,20 +182,26 @@ class Frames:
             Sparsifying basis.
         """
 
+        if not isinstance(sigma, (int, float)):
+            raise ValueError("sigma must be a float or an integer.")
+        elif not (0 < sigma < abs(self.x[-1] - self.x[0])):
+            raise ValueError("sigma must be between 0 and the absolute "\
+                             "length of the range of x.")
+
         for i, mu in enumerate(self.x):
             gdist = scipy.stats.norm.pdf(self.x, mu, sigma).reshape((self.signal_length,))
             self.a_frame[:,i] = gdist/np.linalg.norm(gdist, 2)
         return self.a_frame
 
 
-    def gaussian_overcomplete(self,  sigma_interval=None, step_size=1):
+    def gaussian_overcomplete(self,  sigma_interval=None, step_size=None):
         """
         Gaussian frame, the vectors (atoms) are normal PDFs. The list expectation
         values is given by the entries in x, while the list of equidistant standard 
         deviations is determined through the sigma_interval and step_size. 
 
-        Paremeters:
-        -----------
+        Parameters
+        ----------
         sigma_interval : list, optional
             If None, integers with values ranging from 1 to the signal length 
             will be used to determine a list of standard deviations of the 
@@ -175,8 +210,8 @@ class Frames:
             standard deviation. The default is None.
         step_size : float, optional
             A step size used to generate a list of equidistantly spaced standard 
-            deviations from the sigma_interval values, i.e., (sigma_interval[1] - 
-            sigma_interval[0])/step_size length. The default is 1.
+            deviations from the sigma_interval values. The default is None 
+            corresponding to a step size of |x[0]-x[1]|.
 
         Returns
         -------
@@ -184,8 +219,28 @@ class Frames:
             Sparsifying basis.
         """
 
+        if sigma_interval is not None:
+            if not isinstance(sigma_interval, list):
+                raise ValueError("sigma_interval must be a list.")
+            elif len(sigma_interval) != 2:
+                raise ValueError("sigma_interval must contain two numbers.")
+            elif not all(isinstance(i, (int, float)) for i in sigma_interval):
+                raise ValueError("sigma_interval must contain two numbers.")
+            elif not (0 < sigma_interval[0] < sigma_interval[1] < abs(self.x[-1] - self.x[0])):
+                raise ValueError("sigma_interval must contain two numbers "\
+                                 "between 0 and the absolute length of the range of x.")
+    
+        if not isinstance(step_size, (int, float)):
+            raise ValueError("step_size must be a float or an integer.")
+        elif not (0 < step_size < sigma_interval[1] - sigma_interval[0]):
+            raise ValueError("step_size must be between 0 and the sigma_interval size.")
+
         if sigma_interval is None:
             sigma_interval = [1, self.signal_length]
+
+        if step_size is None:
+            step_size = abs(self.x[0] - self.x[1])
+
         steps = (sigma_interval[1] - sigma_interval[0])/step_size
         n = int(steps) + 1*(steps - int(steps) != 0.0) # there might be a probability that a FloatingPointError will accure, fix it
         type(self).a_frame = np.zeros((self.signal_length, self.signal_length*n), dtype=complex)
@@ -200,8 +255,8 @@ class Frames:
         """
         Cauchy (Lorentz) frame, the vectors (atoms) are cauchy PDFs.
 
-        Paremeters:
-        -----------
+        Parameters
+        ----------
         gamma:
             Half width at half maximum (HWHM).
 
@@ -211,20 +266,26 @@ class Frames:
             Sparsifying basis.
         """
 
+        if not isinstance(gamma, (int, float)):
+            raise ValueError("gamma must be a float or an integer.")
+        elif not (0 < gamma < abs(self.x[-1] - self.x[0])):
+            raise ValueError("gamma must be between 0 and the absolute "\
+                             "length of the range of x.")
+
         for i, mu in enumerate(self.x):
             cdist = self.__cauchy_pdf(mu, gamma).reshape((self.signal_length,))
             self.a_frame[:,i] = cdist/np.linalg.norm(cdist, 2)
         return self.a_frame
     
 
-    def cauchy_overcomplete(self, gamma_interval=None, step_size=1):
+    def cauchy_overcomplete(self, gamma_interval=None, step_size=None):
         """
         Cauchy (Lorentz) frame, the vectors (atoms) are Cauchy (Lorentz) PDFs. The list expectation
         values is given by the entries in x, while the list of half width at half maximas is 
         determined through the gamma_interval and step_size.
 
-        Paremeters:
-        -----------
+        Parameters
+        ----------
         gamma_interval : list, optional
             If None, integer values from 1 to the signal length will be used for
             the half width at half maximum (HWHM) of the distributions. Else a
@@ -232,9 +293,9 @@ class Frames:
             HWHM and the second the highest HWHM.
             The default is None.
         step_size : float, optional
-            A step size used to generate a list out of the equidistantly spaced HWHM
-            values with (gamma_interval[1] - gamma_interval[0])/step_size length.
-            The default is 1.
+            A step size used to generate a list of equidistantly spaced HWHM
+            values from the gamma_interval values. The default is None 
+            corresponding to a step size of |x[0]-x[1]|.
 
         Returns
         -------
@@ -242,8 +303,28 @@ class Frames:
             Sparsifying basis.
         """
 
+        if gamma_interval is not None:
+            if not isinstance(gamma_interval, list):
+                raise ValueError("gamma_interval must be a list.")
+            elif len(gamma_interval) != 2:
+                raise ValueError("gamma_interval must contain two numbers.")
+            elif not all(isinstance(i, (int, float)) for i in gamma_interval):
+                raise ValueError("gamma_interval must contain two numbers.")
+            elif not (0 < gamma_interval[0] < gamma_interval[1] < abs(self.x[-1] - self.x[0])):
+                raise ValueError("gamma_interval must contain two numbers "\
+                                 "between 0 and the absolute length of the range of x.")
+
+        if not isinstance(step_size, (int, float)):
+            raise ValueError("step_size must be a float or an integer.")
+        elif not (0 < step_size < gamma_interval[1] - gamma_interval[0]):
+            raise ValueError("step_size must be between 0 and the gamma_interval size.")
+
         if gamma_interval is None:
             gamma_interval = [1, self.signal_length]
+
+        if step_size is None:
+            step_size = abs(self.x[0] - self.x[1])
+
         steps = (gamma_interval[1] - gamma_interval[0])/step_size
         n = int(steps) + 1*(steps - int(steps) != 0.0) # !!!there is a probability that a FloatingPointError will occure, fix it
         type(self).a_frame = np.zeros((self.signal_length, self.signal_length*n), dtype=complex)
@@ -258,14 +339,14 @@ class Frames:
         """
         Cauchy (Lorentz) PDF.
 
-        Paremeters:
-        -----------
+        Parameters
+        ----------
         mu:
             Expectation value.
         gamma:
             Half width at half maximum (HWHM).
             
-        Returns:
+        Returns
         -------
         PDF value at x.
         """

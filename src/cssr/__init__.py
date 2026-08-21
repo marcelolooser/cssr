@@ -10,5 +10,4 @@ from .frames import Frames, FrameCheck
 from .measurement_matrices import MeasurementMatrices
 from .superresolvers import Superresolvers
 
-
 __all__ = [ "Filters", "Frames", "FrameCheck", "MeasurementMatrices", "Superresolvers"]

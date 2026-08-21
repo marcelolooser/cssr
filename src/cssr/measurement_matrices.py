@@ -27,19 +27,26 @@ class MeasurementMatrices:
 
     Parameters
     ----------
-    number_samples : int
-        Number of random samples.
     a_tr : array like
         Filtered sparsifying matrix. (Alternatively, the sparsifying matrix 
         alone can be used.)
+    number_samples : int
+        Number of random samples.
     """
 
-    def __init__(self, number_samples, a_tr):
-        self.number_samples = number_samples
-        self.a_tr = a_tr
-        self.m, self.n = self.a_tr.shape
+    def __init__(self, a_tr, number_samples):
 
-        self.__validate_parameters()
+        if not isinstance(a_tr, np.ndarray):
+            raise ValueError("The second argument must be an array.")
+        elif a_tr.ndim == 1 or (a_tr.ndim == 2 and a_tr.shape[1] == 1):
+            raise ValueError("The second argument must be an 2D array of shape (n, m) with m > 1.")
+
+        if not 0 < number_samples <= a_tr.shape[0]:
+            raise ValueError(f"The number samples must be between 0 and {a_tr.shape[0]}, but {number_samples} was provided.")
+
+        self.a_tr = a_tr
+        self.number_samples = number_samples
+        self.m, self.n = self.a_tr.shape
 
 
     @staticmethod
@@ -72,6 +79,7 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
+
         ar_matrix = np.sqrt(1/self.number_samples) * np.random.randn(self.number_samples, self.m)
         return ar_matrix
 
@@ -91,6 +99,10 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
+
+        if not 0 <= probability <= 1:
+            raise ValueError("Probability must be between 0 and 1.")
+        
         ar_matrix = np.random.binomial(n=1, p=probability, size=(self.number_samples, self.m))
         return ar_matrix
 
@@ -104,6 +116,7 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
+
         indices1 = random.sample(range(self.m), self.number_samples)
         indices2 = random.sample(range(self.n), self.m)
         full_dft = scipy.linalg.dft(self.n)
@@ -120,6 +133,7 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
+
         indices1 = random.sample(range(self.m), self.number_samples)
         indices2 = random.sample(range(self.n), self.m)
         dct = scipy.fft.dct(np.identity(self.n), axis=0)
@@ -137,6 +151,7 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
+
         b = np.random.choice([-1,1], size=self.m)
         indices1 = random.sample(range(self.m), self.number_samples)
         ar_matrix = scipy.linalg.toeplitz(b)[indices1,:]
@@ -154,6 +169,7 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
+
         block_length = self.m//self.number_samples
         vec_temp = list(np.ones(block_length)) + list(np.zeros(self.m-block_length))
         ar_matrix = scipy.linalg.circulant(vec_temp)[block_length-1::block_length,:][:self.number_samples,:]
@@ -169,6 +185,7 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
+
         indices1 = random.sample(range(self.m), self.number_samples)
         item = np.random.choice([-1,1], size=self.m)
         idn = np.zeros((self.m,self.m))
@@ -207,6 +224,23 @@ class MeasurementMatrices:
            matrix in compressive sensing**," Signal Processing, vol. 92, no. 4,
            pp. 999–1009, Apr. 2012, doi: 10.1016/j.sigpro.2011.10.012.
         """
+
+        if mu is not None:
+            if not isinstance(mu, (float, int)):
+                raise TypeError("mu must be a float or integer.")
+            elif not (0 <= mu <=1):
+                raise ValueError("mu must be a positive float or integer between 0 and 1.")
+
+        if not isinstance(beta, (float, int)):
+            raise TypeError("beta must be a float or integer.")
+        elif beta < 0:
+            raise ValueError("beta must be a positive float or integer.")
+
+        if not (isinstance(l, int) and isinstance(p, int)):
+            raise TypeError("l and p must be integers.")
+        elif l < 0 or p < 0:
+            raise ValueError("l and p must be positive integers.")
+
         ar_matrix = np.random.random(size=(self.number_samples, self.m))
         mu_opt = self.welch_bound
         if mu is None:
@@ -257,6 +291,23 @@ class MeasurementMatrices:
            matrix in compressive sensing**," Signal Processing, vol. 92, no. 4,
            pp. 999–1009, Apr. 2012, doi: 10.1016/j.sigpro.2011.10.012.
         """
+
+        if mu is not None:
+            if not isinstance(mu, (float, int)):
+                raise TypeError("mu must be a float or integer.")
+            elif not (0 <= mu <=1):
+                raise ValueError("mu must be a positive float or integer between 0 and 1.")
+
+        if not isinstance(beta, (float, int)):
+            raise TypeError("beta must be a float or integer.")
+        elif beta < 0:
+            raise ValueError("beta must be a positive float or integer.")
+
+        if not (isinstance(l, int) and isinstance(p, int)):
+            raise TypeError("l and p must be integers.")
+        elif l < 0 or p < 0:
+            raise ValueError("l and p must be positive integers.")
+
         self.a_tr = self._normalize_matrix(self.a_tr, 1)
         ar_matrix = np.sqrt(1/self.number_samples) * np.random.randn(self.number_samples, self.m)
         mu_opt = self.welch_bound
@@ -334,8 +385,20 @@ class MeasurementMatrices:
            388-392, 2010, doi: 10.1109/CIP.2010.5604134.
         """
 
+        if not isinstance(eta, (float, int)):
+            raise TypeError("eta must be a float or integer.")
+        elif eta < 0:
+            raise ValueError("eta must be a positive float or integer.")
+
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 1:
+            raise ValueError("max_iter must be a positive integer.")
+
         if rtol_estimate:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
+
+        self.__validate_rtol(rtol=rtol, rtol_estimate=rtol_estimate)
 
         ar_matrix = np.sqrt(1/self.number_samples) * self.random_gauss_matrix()
 
@@ -395,6 +458,18 @@ class MeasurementMatrices:
            388-392, 2010, doi: 10.1109/CIP.2010.5604134.
         """
 
+        if not isinstance(eta, (float, int)):
+            raise TypeError("eta must be a float or integer.")
+        elif eta < 0:
+            raise ValueError("eta must be a positive float or integer.")
+
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 1:
+            raise ValueError("max_iter must be a positive integer.")
+
+        self.__validate_rtol(rtol=rtol, rtol_estimate=rtol_estimate)
+
         if rtol_estimate:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
 
@@ -450,6 +525,19 @@ class MeasurementMatrices:
            optimization**," Signal Processing, vol. 125, pp. 9–20, Aug. 2016,
            doi: 10.1016/j.sigpro.2015.12.015.
         """
+
+        if mu is not None:
+            if not isinstance(mu, (float, int)):
+                raise TypeError("mu must be a float or integer.")
+            elif not (0 <= mu <=1):
+                raise ValueError("mu must be a positive float or integer between 0 and 1.")
+
+        if not (isinstance(l, int) and isinstance(p, int)):
+            raise TypeError("l and p must be integers.")
+        elif l < 0 or p < 0:
+            raise ValueError("l and p must be positive integers.")
+
+        self.__validate_rtol(rtol=rtol, rtol_estimate=rtol_estimate)
 
         if rtol_estimate:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
@@ -540,6 +628,18 @@ class MeasurementMatrices:
            Minimization**," Mathematics vol. 9, no. 4, Art. no. 329, 2021,
            doi: 10.3390/math9040329.
         """
+
+        if not isinstance(c, (float, int)):
+            raise TypeError("c must be a float or integer.")
+        elif c < 0:
+            raise ValueError("c must be a positive float or integer.")
+
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 1:
+            raise ValueError("max_iter must be a positive integer.")
+
+        self.__validate_rtol(rtol=rtol, rtol_estimate=rtol_estimate)
 
         if rtol_estimate:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
@@ -633,6 +733,24 @@ class MeasurementMatrices:
            doi: 10.3390/s21041229
         """
 
+        if not isinstance(beta, (float, int)):
+            raise TypeError("beta must be a float or integer.")
+        elif beta < 0:
+            raise ValueError("beta must be a positive float or integer.")
+        
+        if mu is not None:
+            if not isinstance(mu, (float, int)):
+                raise TypeError("mu must be a float or integer.")
+            elif not (0 <= mu <=1):
+                raise ValueError("mu must be a positive float or integer between 0 and 1.")
+
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 1:
+            raise ValueError("max_iter must be a positive integer.")
+
+        self.__validate_rtol(rtol=rtol, rtol_estimate=rtol_estimate)
+
         if rtol_estimate:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
 
@@ -655,7 +773,7 @@ class MeasurementMatrices:
             gram_old = gram_t
 
             try:
-                u, s, vh = scipy.linalg.svd(self.a_tr, lapack_driver='gesvd')
+                _, s, vh = scipy.linalg.svd(self.a_tr, lapack_driver='gesvd')
                 if np.max(s) == 0:
                     raise ValueError("a_tr matrix is zero matrix")
             except np.linalg.LinAlgError as e:
@@ -728,22 +846,28 @@ class MeasurementMatrices:
         return np.clip(rtol_estimate, rtol_default, 1)
 
 
-    def __validate_parameters(self, **kwargs):
-        """ Validate common parameters across methods."""
-        if self.number_samples <= 0 or self.number_samples > self.a_tr.shape[0]:
-            raise ValueError(f"The number samples must be between 0 and {self.a_tr.shape[0]}, but {self.number_samples} was provided.")
+    @staticmethod
+    def __validate_rtol(**kwargs):
+        """ 
+        Validate common parameters across methods.
+
+        Raises
+        ------
+        ValueError
+            If the input parameters are not valid.
+        """
 
         for key, val in kwargs.items():
-            if key in ["mu", "eta", "beta", "probability"]:
-                if not (0 < val < 1):
-                    print(f"Warning: {key}={val} outside (0,1), may cause convergence issues")
-            elif key == 'max_iter':
-                if val <= 0:
-                    raise ValueError(f"{key} must be positive")
-            elif key == "rtol":
-                if val < 0:
-                    raise ValueError(f"{key} must be non-negative")
-
-
+            if key == "rtol":
+                if val > 1:
+                    print(f"Warning: {key}={val} is > 1, all singular values are discarded.{key} will be set to 1.")
+                    key = 1
+                elif val < 0:
+                    print(f"Warning: {key}={val} is < 0, all singular values are retained. {key} will be set to 0.")
+                    key = 0
+            elif key == "rtol_estimate":
+                if not isinstance(val, bool):
+                    raise ValueError(f"{key} must be a boolean.")
+                
 
 # =============================================================================
