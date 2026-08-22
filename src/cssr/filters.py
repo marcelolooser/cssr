@@ -124,10 +124,10 @@ class Filters:
 
     @staticmethod
     def pprint_implemented_filters():
-        print("Implemented lowpass filters: ", [
+        print("Implemented filters: ", [
                   "heaviside_lowpass_filter",
-                  "fir_lowpass_filter",
-                  "butter_lowpass_filter",
+                  "fir_filter",
+                  "butter_filter",
                   "instrumental_lowpass_filter",
                   "thermal_lowpass_filter",
                   ]
@@ -396,7 +396,6 @@ class Filters:
             return chi
 
 
-    # consider using np.cumsum(np.concatenate())
     def __convolve(self, coeff):
         """
         Convolves a coeff with a0.
@@ -412,8 +411,7 @@ class Filters:
         """
 
         if not self.filter_signal:
-            for i in range(self.a_tr.shape[1]):
-                self.a_tr[:,i] = scipy.signal.convolve(coeff, self.a_tr[:,i], mode="same")
+            self.a_tr = scipy.signal.convolve(self.a_tr, coeff[:,None], mode="same")
         else:
             self.a_tr = scipy.signal.convolve(coeff, self.a_tr, mode="same")
 
@@ -437,9 +435,7 @@ class Filters:
         None.
         """
 
-        if self.cutoff:
-            pass
-        else:
+        if self.cutoff is None:
             y_fft = scipy.fft.fftshift(scipy.fft.fft(self.y, axis=0))
             y_fft = y_fft/np.linalg.norm(y_fft, "fro")
             threshold = max(abs(y_fft))*threshold_level

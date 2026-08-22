@@ -50,7 +50,7 @@ class MeasurementMatrices:
 
 
     @staticmethod
-    def pprint_implemented_mm():
+    def pprint_implemented_mms():
         print("Implemented measurement matrices: ", [
                 "random_gauss_matrix",
                 "random_bernoulli_matrix",

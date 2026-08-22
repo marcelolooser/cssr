@@ -31,7 +31,7 @@ class Frames:
         X-component of the signal.
     """
 
-    a_frame = 0 # dynamically inherited
+    a_frame = 0 # dynamically inherited by the FrameCheck class
     def __init__(self, x_signal):
 
         if not isinstance(x_signal, np.ndarray):
@@ -41,18 +41,18 @@ class Frames:
 
         self.signal_length = x_signal.shape[0]
         self.x = x_signal.reshape((-1,))
-        type(self).a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
 
 
     @staticmethod
-    def pprint_implemented_frame():
+    def pprint_implemented_frames():
         print("Implemented frames: ", [
-                  "heaviside_overcomplete",
-                  " heaviside, gaussian",
-                  "gaussian_overcomplete",
-                  "cauchy",
-                  "cauchy_overcomplete",
-                  "fourier i.e. DFT"
+                    "heaviside", 
+                    "heaviside_overcomplete",
+                    "gaussian",
+                    "gaussian_overcomplete",
+                    "cauchy",
+                    "cauchy_overcomplete",
+                    "fourier"
                   ]
             )
 
@@ -75,9 +75,10 @@ class Frames:
 
         if not isinstance(box_width, int):
             raise ValueError("box_width must be an integer.")
-        elif not (1 < box_width < self.signal_length):
-            raise ValueError("box_width must be between 1 and the signal length.")
+        elif not (1 <= box_width < self.signal_length):
+            raise ValueError(f"box_width must lie in the range [1, {self.signal_length-1}].")
 
+        type(self).a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
         for j in range(1, self.signal_length+1):
             if j <= box_width:
                 index = range(0, j)
@@ -88,7 +89,7 @@ class Frames:
         return self.a_frame
 
 
-    def heaviside_overcomplete(self, box_width_interval=None, step_size=1):
+    def heaviside_overcomplete(self, box_width_interval=None, step_size=None):
         """
         Heaviside frame, vectors (atoms) consist of binary entries (1's and 0's).
         The box_width_interval parameter determines the range of peak widths.
@@ -101,7 +102,9 @@ class Frames:
             from 1 to the signal length gets constructed. The default is None.
         step_size : int, optional
             A step size used to generate a list of equidistantly spaced box widths
-            values from the box_width_interval. The default is 1.
+            values from the box_width_interval. The default is None, corresponding 
+            to a integer-step size that devides the box_width_interval length d times, 
+            where 1 <= d <= 20 such that modulo(box_width_interval length, d) = 0.
 
         Returns
         -------
@@ -118,30 +121,33 @@ class Frames:
                 raise ValueError("box_width_interval must be a list of two integers.")
             elif not (box_width_interval[0] < box_width_interval[1]):
                 raise ValueError("box_width_interval must be a list of two integers in ascending order.")
-            elif not (1 < box_width_interval[0] < box_width_interval[1] < self.signal_length):
-                raise ValueError("box_width_interval values must be between 1 and the signal length.")
+            elif not (1 <= box_width_interval[0] < box_width_interval[1] < self.signal_length):
+                raise ValueError(f"box_width_interval values must be in the range [1, {self.signal_length - 1}].")
+        else:
+            box_width_interval = [1, self.signal_length]
 
-        if not isinstance(step_size, int):
-            raise ValueError("step_size must be an integer.")
-        elif not (1 <= step_size < box_width_interval[1] - box_width_interval[0]):
-            raise ValueError("step_size must be between 1 and the box_width_interval size.")
+        if step_size is not None:
+            if not isinstance(step_size, int):
+                raise ValueError("step_size must be an integer.")
+            elif not (1 <= step_size <= box_width_interval[1] - box_width_interval[0]):
+                raise ValueError(f"step_size must be in the range [1, {box_width_interval[1] - box_width_interval[0]}].")
+        else:
+            step_size = max(d for d in range(1, 20) if (box_width_interval[1] - box_width_interval[0] + 1) % d == 0)
 
-        box_width_interval = [1, self.signal_length] if box_width_interval is None else sorted(box_width_interval)
         delta = box_width_interval[1] - box_width_interval[0] + 1
-
         corr = sum(range(box_width_interval[0]-1, box_width_interval[1], step_size))
-        type(self).a_frame = np.zeros((self.signal_length, delta*self.signal_length - corr), dtype=complex) # shape[1] = n(n+1)/2 - 1, spark = 3
+        type(self).a_frame = np.zeros((self.signal_length, (delta//step_size)*self.signal_length - corr), dtype=complex) # shape[1] = n(n+1)/2 - 1, spark = 3
         box_width = box_width_interval[0]
         for j in range(self.a_frame.shape[1]):
             temp_correction = self.__index_calc(box_width-1, start=box_width_interval[0]-1)
             index = range(j + temp_correction, j + temp_correction + box_width)
             self.a_frame[index, j] = 1/np.sqrt(box_width)
             if (j+1) + temp_correction == self.signal_length - (box_width-1):
-                box_width += step_size
+                box_width += 1
         return self.a_frame
 
 
-    @lru_cache # helper method for heaviside_overcomplete dictionary
+    @lru_cache 
     def __index_calc(self, box_width, start=0):
         """
         Helper function for heaviside_overcomplete.
@@ -186,8 +192,9 @@ class Frames:
             raise ValueError("sigma must be a float or an integer.")
         elif not (0 < sigma < abs(self.x[-1] - self.x[0])):
             raise ValueError("sigma must be between 0 and the absolute "\
-                             "length of the range of x.")
+                             f"length of the range of x {abs(self.x[-1] - self.x[0])}.")
 
+        type(self).a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
         for i, mu in enumerate(self.x):
             gdist = scipy.stats.norm.pdf(self.x, mu, sigma).reshape((self.signal_length,))
             self.a_frame[:,i] = gdist/np.linalg.norm(gdist, 2)
@@ -210,8 +217,8 @@ class Frames:
             standard deviation. The default is None.
         step_size : float, optional
             A step size used to generate a list of equidistantly spaced standard 
-            deviations from the sigma_interval values. The default is None 
-            corresponding to a step size of |x[0]-x[1]|.
+            deviations from the sigma_interval values. The default is None, 
+            corresponding to a step size of |x[-1]-x[0]|/10.
 
         Returns
         -------
@@ -228,18 +235,17 @@ class Frames:
                 raise ValueError("sigma_interval must contain two numbers.")
             elif not (0 < sigma_interval[0] < sigma_interval[1] < abs(self.x[-1] - self.x[0])):
                 raise ValueError("sigma_interval must contain two numbers "\
-                                 "between 0 and the absolute length of the range of x.")
-    
-        if not isinstance(step_size, (int, float)):
-            raise ValueError("step_size must be a float or an integer.")
-        elif not (0 < step_size < sigma_interval[1] - sigma_interval[0]):
-            raise ValueError("step_size must be between 0 and the sigma_interval size.")
-
-        if sigma_interval is None:
-            sigma_interval = [1, self.signal_length]
-
-        if step_size is None:
-            step_size = abs(self.x[0] - self.x[1])
+                                 f"between 0 and the absolute length of the range of x {abs(self.x[-1] - self.x[0])}.")
+        else:
+            sigma_interval = [abs(self.x[1] - self.x[0]), abs(self.x[-1] - self.x[0]) - abs(self.x[1] - self.x[0])]
+        
+        if step_size is not None:
+            if not isinstance(step_size, (int, float)):
+                raise ValueError("step_size must be a float or an integer.")
+            elif not (0 < step_size < sigma_interval[1] - sigma_interval[0]):
+                raise ValueError(f"step_size must be between 0 and the sigma_interval size {sigma_interval[1] - sigma_interval[0]}.")
+        else:
+            step_size = abs(self.x[-1] - self.x[0])/10
 
         steps = (sigma_interval[1] - sigma_interval[0])/step_size
         n = int(steps) + 1*(steps - int(steps) != 0.0) # there might be a probability that a FloatingPointError will accure, fix it
@@ -270,8 +276,9 @@ class Frames:
             raise ValueError("gamma must be a float or an integer.")
         elif not (0 < gamma < abs(self.x[-1] - self.x[0])):
             raise ValueError("gamma must be between 0 and the absolute "\
-                             "length of the range of x.")
-
+                             f"length of the range of x {abs(self.x[-1] - self.x[0])}.")
+        
+        type(self).a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
         for i, mu in enumerate(self.x):
             cdist = self.__cauchy_pdf(mu, gamma).reshape((self.signal_length,))
             self.a_frame[:,i] = cdist/np.linalg.norm(cdist, 2)
@@ -294,8 +301,8 @@ class Frames:
             The default is None.
         step_size : float, optional
             A step size used to generate a list of equidistantly spaced HWHM
-            values from the gamma_interval values. The default is None 
-            corresponding to a step size of |x[0]-x[1]|.
+            values from the gamma_interval values. The default is None, 
+            corresponding to a step size of |x[-1]-x[0]|/10.
 
         Returns
         -------
@@ -312,18 +319,17 @@ class Frames:
                 raise ValueError("gamma_interval must contain two numbers.")
             elif not (0 < gamma_interval[0] < gamma_interval[1] < abs(self.x[-1] - self.x[0])):
                 raise ValueError("gamma_interval must contain two numbers "\
-                                 "between 0 and the absolute length of the range of x.")
+                                 f"between 0 and the absolute length of the range of x {abs(self.x[-1] - self.x[0])}.")
+        else:
+            gamma_interval = [abs(self.x[1] - self.x[0]), abs(self.x[-1] - self.x[0]) - abs(self.x[1] - self.x[0])]
 
-        if not isinstance(step_size, (int, float)):
-            raise ValueError("step_size must be a float or an integer.")
-        elif not (0 < step_size < gamma_interval[1] - gamma_interval[0]):
-            raise ValueError("step_size must be between 0 and the gamma_interval size.")
-
-        if gamma_interval is None:
-            gamma_interval = [1, self.signal_length]
-
-        if step_size is None:
-            step_size = abs(self.x[0] - self.x[1])
+        if step_size is not None:
+            if not isinstance(step_size, (int, float)):
+                raise ValueError("step_size must be a float or an integer.")
+            elif not (0 < step_size < gamma_interval[1] - gamma_interval[0]):
+                raise ValueError(f"step_size must be between 0 and the gamma_interval size {gamma_interval[1] - gamma_interval[0]}.")
+        else:
+            step_size = abs(self.x[-1] - self.x[0])/10
 
         steps = (gamma_interval[1] - gamma_interval[0])/step_size
         n = int(steps) + 1*(steps - int(steps) != 0.0) # !!!there is a probability that a FloatingPointError will occure, fix it
@@ -362,7 +368,8 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
-
+        
+        type(self).a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
         self.a_frame = scipy.fft.fftshift(scipy.linalg.dft(self.signal_length))
         return self.a_frame
 

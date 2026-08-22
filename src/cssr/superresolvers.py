@@ -80,9 +80,7 @@ def _boost_superresolver(func):
         elif atol < 0:
             raise ValueError("atol must be a non-negative float.")
         
-        if rho:
-            pass
-        else:
+        if rho is None:
             temp1 = (self.a.T.dot(self.ar.dot(args[0].reshape((-1,1))))).ravel()
             rho = np.count_nonzero(temp1 >= eta* np.linalg.norm(temp1, np.inf))
 
