@@ -23,7 +23,7 @@ class Frames:
     The Frames class provides methods to construct various types of frames 
     ((overcomplete) dictionaries) for signal processing tasks. These frames can 
     be used as sparsifying bases for compressive sensing applications and are 
-    essential for constructing sensing matrices.
+    essential for constructing sensing matrices. 
 
     Parameters
     ----------
