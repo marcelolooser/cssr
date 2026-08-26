@@ -493,10 +493,18 @@ class Filters:
         """
 
         Vmod = self._cutoff
-        x = self.x.ravel()
-        if Vmod < 0.:
-            Vmod = 1
-        return (8/(3*np.pi)) * ((np.sign(abs(Vmod**2 - x**2)) * (abs(Vmod**2 - x**2)**(3/2)))/(Vmod**4)) * (abs(x) < Vmod)
+        x = self.x.ravel() 
+        x = x - (max(x) + min(x))/2
+  
+        dx = np.mean(np.diff(x))
+        if dx > 1.22 * Vmod: # check if the resolution limit has been breached
+            center = np.argmin(abs(x))
+            phi = np.zeros(len(x))
+            phi[center] = (8/(3*np.pi)) * ((np.sign(abs(Vmod**2)) * (abs(Vmod**2)**(3/2)))/(Vmod**4))
+        else:
+            phi = (8/(3*np.pi)) * ((np.sign(abs(Vmod**2 - x**2)) * (abs(Vmod**2 - x**2)**(3/2)))/(Vmod**4)) * (abs(x) < Vmod)
+
+        return phi
 
 
     @_record_filter
@@ -548,22 +556,27 @@ class Filters:
         """
 
         temperature = self._cutoff
+        factor = (1.60217662/1.38064852) * 1e4 # e/k
+
         x = self.x.ravel()
-        if temperature <= 0:
-            return np.ones(x.shape)
+        x = np.array(x - (max(x) + min(x))/2, dtype=float) # for np.exp
+
+        dx = np.mean(np.diff(x))
+        if dx > 5.4 * temperature / factor: # check if the resolution limit has been breached
+            center = np.argmin(np.abs(x))
+            chi = np.zeros(len(x))
+            chi[center] = 1/(6*temperature) * factor
         else:
-            factor = (1.60217662/1.38064852) * 1e4 # e/k
-            x_temp = np.array(x, dtype=float) # for np.exp
-            v = (x_temp/temperature) * factor
+            v = (x/temperature) * factor
 
-            with np.errstate(over='ignore', invalid='ignore'): # supress overflow and invaild value warnings
-                u = np.exp(v)
-                chi = ((1/temperature) * u * ((v - 2) * u + v + 2)/(u - 1)**3)
+            v = -abs(v)
+            u = np.exp(v)
+            chi = ((1/temperature) * u * ((v - 2) * u + v + 2)/(u - 1)**3)
 
-            chi = chi * (chi <= 1/(6*temperature)) + 1/(6*temperature) * (chi > 1/(6*temperature)) + 1/(6*temperature) * (chi == 0)*(abs(x_temp) <= 1e-3)  # there is a numerical probelm wich is handeld by cutting off values which tend to diverge but are in fact bounded
-            chi = chi* factor * (chi >= 1e-15) # drop to small values
-            chi = np.nan_to_num(chi, copy=True, nan=0.0) # drop nans and replace them by zero, these is caused by overflow in the power operation
-            return chi
+            chi = chi * (chi <= 1/(6*temperature)) + 1/(6*temperature) * (chi > 1/(6*temperature))
+            chi = chi* factor * (chi >= 1e-16) # drop small values
+
+        return chi
 
 
     def __convolve(self, coeff):
