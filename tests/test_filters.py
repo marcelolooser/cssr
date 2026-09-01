@@ -1,7 +1,5 @@
-
 """
-Test the filters module of the cssr package.
-
+Test module for the filters module of the cssr package.
 
 @author: marcelo looser
 """
@@ -63,7 +61,7 @@ def construct_cutoffs():
 
 
 @pytest.fixture
-def construct_haviside_frame(construct_test_signal_x_components):
+def construct_heaviside_frame(construct_test_signal_x_components):
 
     # Preliminaries:
     # --------------
@@ -159,7 +157,7 @@ def construct_fourier_frame(construct_test_signal_x_components):
 
 
 @pytest.mark.parametrize("frame_name", ["heaviside_signal"], indirect=True)
-def test_heaviside_signal(load_filter_data, construct_test_signal, construct_haviside_frame, construct_cutoffs):
+def test_filtered_heaviside_signal(load_filter_data, construct_test_signal, construct_heaviside_frame, construct_cutoffs):
     data = load_filter_data
     x, dim, n_peaks, amps, peaks, y_sparse = construct_test_signal
     cutoffs = construct_cutoffs
@@ -168,7 +166,7 @@ def test_heaviside_signal(load_filter_data, construct_test_signal, construct_hav
     # Preliminary constructions:
     # --------------------------
 
-    heaviside_frames = construct_haviside_frame
+    heaviside_frames = construct_heaviside_frame
     a0_heaviside1, a0_heaviside2, a0_heaviside3 = heaviside_frames[:3]
 
 
@@ -211,9 +209,9 @@ def test_heaviside_signal(load_filter_data, construct_test_signal, construct_hav
     y_heaviside_filter2_record1 = csFr_y2_heaviside.filter_record(name_only=True)
     y_heaviside_filter3_record1 = csFr_y3_heaviside.filter_record(name_only=True)
 
-    csFr_y1_heaviside.rest()
-    csFr_y2_heaviside.rest()
-    csFr_y3_heaviside.rest()
+    csFr_y1_heaviside.reset()
+    csFr_y2_heaviside.reset()
+    csFr_y3_heaviside.reset()
 
     csFr_y1_heaviside.butter_filter(return_array=False)
     csFr_y2_heaviside.butter_filter(return_array=False)
@@ -262,7 +260,7 @@ def test_heaviside_signal(load_filter_data, construct_test_signal, construct_hav
 
 
 @pytest.mark.parametrize("frame_name", ["gaussian_signal"], indirect=True)
-def test_gaussian_signal(load_filter_data, construct_test_signal, construct_gaussian_frame, construct_cutoffs):
+def test_filtered_gaussian_signal(load_filter_data, construct_test_signal, construct_gaussian_frame, construct_cutoffs):
     data = load_filter_data
     x, dim, n_peaks, amps, peaks, y_sparse = construct_test_signal
     cutoffs = construct_cutoffs
@@ -314,9 +312,9 @@ def test_gaussian_signal(load_filter_data, construct_test_signal, construct_gaus
     y_gaussian_filter2_record1 = csFr_y2_gaussian.filter_record(name_only=True)
     y_gaussian_filter3_record1 = csFr_y3_gaussian.filter_record(name_only=True)
 
-    csFr_y1_gaussian.rest()
-    csFr_y2_gaussian.rest()
-    csFr_y3_gaussian.rest()
+    csFr_y1_gaussian.reset()
+    csFr_y2_gaussian.reset()
+    csFr_y3_gaussian.reset()
 
     csFr_y1_gaussian.butter_filter(return_array=False)
     csFr_y2_gaussian.butter_filter(return_array=False)
@@ -365,7 +363,7 @@ def test_gaussian_signal(load_filter_data, construct_test_signal, construct_gaus
 
 
 @pytest.mark.parametrize("frame_name", ["cauchy_signal"], indirect=True)
-def test_cauchy_signal(load_filter_data, construct_test_signal, construct_cauchy_frame, construct_cutoffs):
+def test_filtered_cauchy_signal(load_filter_data, construct_test_signal, construct_cauchy_frame, construct_cutoffs):
     data = load_filter_data
     x, dim, n_peaks, amps, peaks, y_sparse = construct_test_signal
     cutoffs = construct_cutoffs
@@ -417,9 +415,9 @@ def test_cauchy_signal(load_filter_data, construct_test_signal, construct_cauchy
     y_cauchy_filter2_record1 = csFr_y2_cauchy.filter_record(name_only=True)
     y_cauchy_filter3_record1 = csFr_y3_cauchy.filter_record(name_only=True)
 
-    csFr_y1_cauchy.rest()
-    csFr_y2_cauchy.rest()
-    csFr_y3_cauchy.rest()
+    csFr_y1_cauchy.reset()
+    csFr_y2_cauchy.reset()
+    csFr_y3_cauchy.reset()
 
     csFr_y1_cauchy.butter_filter(return_array=False)
     csFr_y2_cauchy.butter_filter(return_array=False)
@@ -468,7 +466,7 @@ def test_cauchy_signal(load_filter_data, construct_test_signal, construct_cauchy
 
 
 @pytest.mark.parametrize("frame_name", ["fourier_signal"], indirect=True)
-def test_fourier_signal(load_filter_data, construct_test_signal, construct_fourier_frame, construct_cutoffs):
+def test_filtered_fourier_signal(load_filter_data, construct_test_signal, construct_fourier_frame, construct_cutoffs):
     data = load_filter_data
     x, dim, n_peaks, amps, peaks, y_sparse = construct_test_signal
     cutoffs = construct_cutoffs
@@ -495,7 +493,7 @@ def test_fourier_signal(load_filter_data, construct_test_signal, construct_fouri
     y_fourier1_filtered1 = csFr_y1_fourier.truncated_a0
     y_fourier_filter1_record1 = csFr_y1_fourier.filter_record(name_only=True)
 
-    csFr_y1_fourier.rest()
+    csFr_y1_fourier.reset()
     csFr_y1_fourier.butter_filter(return_array=False)
     csFr_y1_fourier.instrumental_lowpass_filter(return_array=False)
 
@@ -516,7 +514,7 @@ def test_fourier_signal(load_filter_data, construct_test_signal, construct_fouri
 
 
 @pytest.mark.parametrize("frame_name", ["heaviside_frame"], indirect=True)
-def test_heaviside_frame(load_filter_data, construct_test_signal_x_components, construct_haviside_frame, construct_cutoffs):
+def test_filtered_heaviside_frame(load_filter_data, construct_test_signal_x_components, construct_heaviside_frame, construct_cutoffs):
     data = load_filter_data
     x = construct_test_signal_x_components
     cutoffs = construct_cutoffs
@@ -525,7 +523,7 @@ def test_heaviside_frame(load_filter_data, construct_test_signal_x_components, c
     # Preliminary constructions:
     # --------------------------
 
-    heaviside_frames = construct_haviside_frame
+    heaviside_frames = construct_heaviside_frame
 
     a0_heaviside1, a0_heaviside2, a0_heaviside3 = heaviside_frames[:3]
     a0_heaviside_overcomplete1, a0_heaviside_overcomplete2, a0_heaviside_overcomplete3 = heaviside_frames[3:]
@@ -569,9 +567,9 @@ def test_heaviside_frame(load_filter_data, construct_test_signal_x_components, c
     a0_heaviside_filter2_record1 = csFr_a02_heaviside.filter_record(name_only=True)
     a0_heaviside_filter3_record1 = csFr_a03_heaviside.filter_record(name_only=True)
 
-    csFr_a01_heaviside.rest()
-    csFr_a02_heaviside.rest()
-    csFr_a03_heaviside.rest()
+    csFr_a01_heaviside.reset()
+    csFr_a02_heaviside.reset()
+    csFr_a03_heaviside.reset()
 
     csFr_a01_heaviside.butter_filter(return_array=False)
     csFr_a02_heaviside.butter_filter(return_array=False)
@@ -650,9 +648,9 @@ def test_heaviside_frame(load_filter_data, construct_test_signal_x_components, c
     a0_heaviside_overcomplete_filter2_record1 = csFr_a02_heaviside_overcomplete.filter_record(name_only=True)
     a0_heaviside_overcomplete_filter3_record1 = csFr_a03_heaviside_overcomplete.filter_record(name_only=True)
 
-    csFr_a01_heaviside_overcomplete.rest()
-    csFr_a02_heaviside_overcomplete.rest()
-    csFr_a03_heaviside_overcomplete.rest()
+    csFr_a01_heaviside_overcomplete.reset()
+    csFr_a02_heaviside_overcomplete.reset()
+    csFr_a03_heaviside_overcomplete.reset()
 
     csFr_a01_heaviside_overcomplete.butter_filter(return_array=False)
     csFr_a02_heaviside_overcomplete.butter_filter(return_array=False)
@@ -697,7 +695,7 @@ def test_heaviside_frame(load_filter_data, construct_test_signal_x_components, c
 
 
 @pytest.mark.parametrize("frame_name", ["gaussian_frame"], indirect=True)
-def test_gaussian_frame(load_filter_data, construct_test_signal_x_components, construct_gaussian_frame, construct_cutoffs):
+def test_filtered_gaussian_frame(load_filter_data, construct_test_signal_x_components, construct_gaussian_frame, construct_cutoffs):
     data = load_filter_data
     x = construct_test_signal_x_components
     cutoffs = construct_cutoffs
@@ -748,9 +746,9 @@ def test_gaussian_frame(load_filter_data, construct_test_signal_x_components, co
     a0_gaussian_filter2_record1 = csFr_a02_gaussian.filter_record(name_only=True)
     a0_gaussian_filter3_record1 = csFr_a03_gaussian.filter_record(name_only=True)
 
-    csFr_a01_gaussian.rest()
-    csFr_a02_gaussian.rest()
-    csFr_a03_gaussian.rest()
+    csFr_a01_gaussian.reset()
+    csFr_a02_gaussian.reset()
+    csFr_a03_gaussian.reset()
 
     csFr_a01_gaussian.butter_filter(return_array=False)
     csFr_a02_gaussian.butter_filter(return_array=False)
@@ -829,9 +827,9 @@ def test_gaussian_frame(load_filter_data, construct_test_signal_x_components, co
     a0_gaussian_overcomplete_filter2_record1 = csFr_a02_gaussian_overcomplete.filter_record(name_only=True)
     a0_gaussian_overcomplete_filter3_record1 = csFr_a03_gaussian_overcomplete.filter_record(name_only=True)
 
-    csFr_a01_gaussian_overcomplete.rest()
-    csFr_a02_gaussian_overcomplete.rest()
-    csFr_a03_gaussian_overcomplete.rest()
+    csFr_a01_gaussian_overcomplete.reset()
+    csFr_a02_gaussian_overcomplete.reset()
+    csFr_a03_gaussian_overcomplete.reset()
 
     csFr_a01_gaussian_overcomplete.butter_filter(return_array=False)
     csFr_a02_gaussian_overcomplete.butter_filter(return_array=False)
@@ -876,7 +874,7 @@ def test_gaussian_frame(load_filter_data, construct_test_signal_x_components, co
 
 
 @pytest.mark.parametrize("frame_name", ["cauchy_frame"], indirect=True)
-def test_cauchy_frame(load_filter_data, construct_test_signal_x_components, construct_cauchy_frame, construct_cutoffs):
+def test_filtered_cauchy_frame(load_filter_data, construct_test_signal_x_components, construct_cauchy_frame, construct_cutoffs):
     data = load_filter_data
     x = construct_test_signal_x_components
     cutoffs = construct_cutoffs
@@ -929,9 +927,9 @@ def test_cauchy_frame(load_filter_data, construct_test_signal_x_components, cons
     a0_cauchy_filter2_record1 = csFr_a02_cauchy.filter_record(name_only=True)
     a0_cauchy_filter3_record1 = csFr_a03_cauchy.filter_record(name_only=True)
 
-    csFr_a01_cauchy.rest()
-    csFr_a02_cauchy.rest()
-    csFr_a03_cauchy.rest()
+    csFr_a01_cauchy.reset()
+    csFr_a02_cauchy.reset()
+    csFr_a03_cauchy.reset()
 
     csFr_a01_cauchy.butter_filter(return_array=False)
     csFr_a02_cauchy.butter_filter(return_array=False)
@@ -1010,9 +1008,9 @@ def test_cauchy_frame(load_filter_data, construct_test_signal_x_components, cons
     a0_cauchy_overcomplete_filter2_record1 = csFr_a02_cauchy_overcomplete.filter_record(name_only=True)
     a0_cauchy_overcomplete_filter3_record1 = csFr_a03_cauchy_overcomplete.filter_record(name_only=True)
 
-    csFr_a01_cauchy_overcomplete.rest()
-    csFr_a02_cauchy_overcomplete.rest()
-    csFr_a03_cauchy_overcomplete.rest()
+    csFr_a01_cauchy_overcomplete.reset()
+    csFr_a02_cauchy_overcomplete.reset()
+    csFr_a03_cauchy_overcomplete.reset()
 
     csFr_a01_cauchy_overcomplete.butter_filter(return_array=False)
     csFr_a02_cauchy_overcomplete.butter_filter(return_array=False)
@@ -1057,7 +1055,7 @@ def test_cauchy_frame(load_filter_data, construct_test_signal_x_components, cons
 
 
 @pytest.mark.parametrize("frame_name", ["fourier_frame"], indirect=True)
-def test_fourier_frame(load_filter_data, construct_test_signal_x_components, construct_fourier_frame, construct_cutoffs):
+def test_filtered_fourier_frame(load_filter_data, construct_test_signal_x_components, construct_fourier_frame, construct_cutoffs):
     data = load_filter_data
     x = construct_test_signal_x_components
     cutoffs = construct_cutoffs
@@ -1084,7 +1082,7 @@ def test_fourier_frame(load_filter_data, construct_test_signal_x_components, con
     a0_fourier1_filtered1 = csFr_a01_fourier.truncated_a0
     a0_fourier_filter1_record1 = csFr_a01_fourier.filter_record(name_only=True)
 
-    csFr_a01_fourier.rest()
+    csFr_a01_fourier.reset()
     csFr_a01_fourier.butter_filter(return_array=False)
     csFr_a01_fourier.instrumental_lowpass_filter(return_array=False)
 

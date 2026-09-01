@@ -1,7 +1,5 @@
-
 """
-Test the frames module of the cssr package.
-
+Test module for the frames module of the cssr package.
 
 @author: marcelo looser
 """
