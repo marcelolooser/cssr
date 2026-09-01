@@ -21,14 +21,14 @@ import scipy.linalg
 
 class MeasurementMatrices:
     """
-    The MeasurementMatrices class provides methods for constructing various 
-    types of measurement matrices used in compressed sensing. These matrices 
+    The MeasurementMatrices class provides methods for constructing various
+    types of measurement matrices used in compressed sensing. These matrices
     are a central component in constructing sensing matrices.
 
     Parameters
     ----------
     a_tr : array like
-        Filtered sparsifying matrix. (Alternatively, the sparsifying matrix 
+        Filtered sparsifying matrix. (Alternatively, the sparsifying matrix
         alone can be used.)
     number_samples : int
         Number of random samples.
@@ -39,10 +39,12 @@ class MeasurementMatrices:
         if not isinstance(a_tr, np.ndarray):
             raise ValueError("The second argument must be an array.")
         elif a_tr.ndim == 1 or (a_tr.ndim == 2 and a_tr.shape[1] == 1):
-            raise ValueError("The second argument must be an 2D array of shape (n, m) with m > 1.")
+            raise ValueError("The second argument must be an 2D array of shape "\
+                             "(n, m) with m > 1.")
 
         if not 0 < number_samples <= a_tr.shape[0]:
-            raise ValueError(f"The number samples must be between 0 and {a_tr.shape[0]}, but {number_samples} was provided.")
+            raise ValueError("The number samples must be between 0 and "\
+                             f"{a_tr.shape[0]}, but {number_samples} was provided.")
 
         self.a_tr = a_tr
         self.number_samples = number_samples
@@ -86,13 +88,14 @@ class MeasurementMatrices:
 
     def random_bernoulli_matrix(self, probability=0.1):
         """
-        Binary matrix constructed from randomly chosen entries of the bernoulli distribution.
+        Binary matrix constructed from randomly chosen entries of the bernoulli
+        distribution.
 
         Parameters
         ----------
         probability : float, optional
-            Probability (between 0 and 1) of choosing 1 from a bernoulli distribution. 
-            The default is 0.1.
+            Probability (between 0 and 1) of choosing 1 from a bernoulli
+            distribution. The default is 0.1.
 
         Returns
         -------
@@ -102,15 +105,15 @@ class MeasurementMatrices:
 
         if not 0 <= probability <= 1:
             raise ValueError("Probability must be between 0 and 1.")
-        
+
         ar_matrix = np.random.binomial(n=1, p=probability, size=(self.number_samples, self.m))
         return ar_matrix
 
 
     def random_partial_fourier_matrix(self):
-        """ 
+        """
         Random selection of rows and columns of a descrete fourier matrix.
-        
+
         Returns
         -------
         ar_matrix : ndarray
@@ -118,16 +121,20 @@ class MeasurementMatrices:
         """
 
         indices1 = random.sample(range(self.m), self.number_samples)
-        indices2 = random.sample(range(self.n), self.m)
-        full_dft = scipy.linalg.dft(self.n)
+        if self.n >= self.m:
+            indices2 = random.sample(range(self.n), self.m)
+            full_dft = scipy.linalg.dft(self.n)
+        else:
+            indices2 = random.sample(range(self.m), self.m)
+            full_dft = scipy.linalg.dft(self.m)
         ar_matrix = full_dft[:,indices2][indices1,:]
         return ar_matrix
 
 
     def random_partial_dct_matrix(self):
-        """ 
+        """
         Random selection of rows and columns of a descrete cosine matrix.
-        
+
         Returns
         -------
         ar_matrix : ndarray
@@ -135,35 +142,39 @@ class MeasurementMatrices:
         """
 
         indices1 = random.sample(range(self.m), self.number_samples)
-        indices2 = random.sample(range(self.n), self.m)
-        dct = scipy.fft.dct(np.identity(self.n), axis=0)
+        if self.n >= self.m:
+            indices2 = random.sample(range(self.n), self.m)
+            dct = scipy.fft.dct(np.identity(self.n), axis=0)
+        else:
+            indices2 = random.sample(range(self.m), self.m)
+            dct = scipy.fft.dct(np.identity(self.m), axis=0)
         ar_matrix = dct[:,indices2][indices1,:]
         return ar_matrix
 
 
     def random_toeplitz_matrix(self):
-        """ 
+        """
         Random toeplitz matrix, constructed via a vector of randomly chosen
         +/- 1 to get a circular matrix.
-        
+
         Returns
         -------
         ar_matrix : ndarray
             Measurement matrix.
         """
 
-        b = np.random.choice([-1,1], size=self.m)
+        b = np.random.choice((-1,1), size=self.m)
         indices1 = random.sample(range(self.m), self.number_samples)
         ar_matrix = scipy.linalg.toeplitz(b)[indices1,:]
         return ar_matrix
 
 
     def binary_block(self):
-        """ 
-        Binary block matrix. The given a_tr is an (M,N) array, constructed by 
-        inserting blocks of 1s in a staircase fashion into the diagonal entries 
+        """
+        Binary block matrix. The given a_tr is an (M,N) array, constructed by
+        inserting blocks of 1s in a staircase fashion into the diagonal entries
         of a zero matrix.
-        
+
         Returns
         -------
         ar_matrix : ndarray
@@ -187,7 +198,7 @@ class MeasurementMatrices:
         """
 
         indices1 = random.sample(range(self.m), self.number_samples)
-        item = np.random.choice([-1,1], size=self.m)
+        item = np.random.choice((-1,1), size=self.m)
         idn = np.zeros((self.m,self.m))
         idn.ravel()[::self.m+1] = item
         ar_matrix = idn[indices1,:]
@@ -203,14 +214,15 @@ class MeasurementMatrices:
         Parameters
         ----------
         mu : float, optional
-            Desired coherence. If None is provided, the sub-optimal Welch bound will
-            be used. The default is None.
+            Desired coherence. If None is provided, the sub-optimal Welch bound
+            will be used. The default is None.
         beta : float, optional
-            Hyperparameter, also referred to as the learning rate. The default is 1e-4.
+            Hyperparameter, also referred to as the learning rate. The default
+            is 1e-4.
         l : int, optional
-            Number of outer loops. Default is 30.
+            Number of outer loops. The default is 30.
         p : int, optional
-            Number of inner loops. Default is 20.
+            Number of inner loops. The default is 20.
 
         Returns
         -------
@@ -261,7 +273,7 @@ class MeasurementMatrices:
         return ar_matrix
 
 
-    def gdo_measurement_matrix_adaptive(self, mu=None, beta=1e-3, l=25, p=12):
+    def gdo_measurement_matrix_adaptive(self, mu=None, beta=1e-3, eta=1e-6, l=25, p=12):
         """
         Adaptive gradient-based measurment matrix optimization. See reference [1].
         This is far more intensive to calculate than gdo_measurement_matrix,
@@ -270,14 +282,18 @@ class MeasurementMatrices:
         Parameters
         ----------
         mu : float, optional
-            Desired coherence. If None is provided, the sub-optimal Welch bound will
-            be used. The default is None.
+            Desired coherence. If None is provided, the sub-optimal Welch bound
+            will be used. The default is None.
         beta : float, optional
-            Initial hyperparameter. This will be adapted. Default is 1e-3.
+            Hyperparameter, also referred to as the learning rate. This will be
+            adapted. The default is 1e-3.
+        eta : float, optional
+            Hyperparameter, which adjust the learning rate beta incrementally.
+            The default is 1e-6.
         l : int, optional
-            Number of outer loops. Default is 25.
+            Number of outer loops. The default is 25.
         p : int, optional
-            Number of inner loops. Default is 12.
+            Number of inner loops. The default is 12.
 
         Returns
         -------
@@ -302,6 +318,11 @@ class MeasurementMatrices:
             raise TypeError("beta must be a float or integer.")
         elif beta < 0:
             raise ValueError("beta must be a positive float or integer.")
+
+        if not isinstance(eta, (float, int)):
+            raise TypeError("eta must be a float or integer.")
+        elif beta < 0:
+            raise ValueError("eta must be a positive float or integer.")
 
         if not (isinstance(l, int) and isinstance(p, int)):
             raise TypeError("l and p must be integers.")
@@ -334,7 +355,7 @@ class MeasurementMatrices:
                 c = self.a_tr.T.dot(h.T.dot(h.dot(self.a_tr)))
 
                 ar_matrix = ar_matrix - beta * h
-                beta = beta - 1e-5 * (- 2 * np.einsum('ij,ji->', (a - gram).T, (b + b.T)) # computing the trace via einstein summation convention
+                beta = beta - eta * (- 2 * np.einsum('ij,ji->', (a - gram).T, (b + b.T)) # computing the trace via einstein summation convention
 
                                       + 2 * beta * (2*np.einsum('ij,ji->', c, (a - gram))
                                       + np.einsum('ij,ji->', (b + b.T), (b + b.T)))
@@ -364,12 +385,12 @@ class MeasurementMatrices:
             eps is the corresponding machine precision of the datatype of a.
             The default is 1e-6.
         rtol_estimate : bool, optional
-            If True, the rtol value will be estimated based on the provided noise 
-            level or signal, which can be passed through **kwargs. If False, 
+            If True, the rtol value will be estimated based on the provided noise
+            level or signal, which can be passed through **kwargs. If False,
             the default rtol value will be used. The default is True.
         **kwargs :
             Additional key-word arguments to be used for the rtol estimation.
-            The keys 'signal' and 'noise_level' can be provided to estimate 
+            The keys 'signal' and 'noise_level' can be provided to estimate
             the rtol value based on the signal coherence or noise level.
 
         Returns
@@ -437,12 +458,12 @@ class MeasurementMatrices:
             eps is the corresponding machine precision of the datatype of a.
             The default is 5e-2.
         rtol_estimate : bool, optional
-            If True, the rtol value will be estimated based on the provided noise 
-            level or signal, which can be passed through **kwargs. If False, 
+            If True, the rtol value will be estimated based on the provided noise
+            level or signal, which can be passed through **kwargs. If False,
             the default rtol value will be used. The default is True.
         **kwargs :
             Additional key-word arguments to be used for the rtol estimation.
-            The keys 'signal' and 'noise_level' can be provided to estimate 
+            The keys 'signal' and 'noise_level' can be provided to estimate
             the rtol value based on the signal coherence or noise level.
 
         Returns
@@ -495,9 +516,9 @@ class MeasurementMatrices:
             Desired coherence. If None is provided, the sub-optimal Welch bound will
             be used. The default is None.
         l : int, optional
-            Number of outer loops. Default is 30.
+            Number of outer loops. The default is 30.
         p : int, optional
-            Number of inner loops. Default is 25.
+            Number of inner loops. The default is 25.
         rtol : float, optional
             Cutoff factor for 'small' singular values. In lstsq, singular values
             less than rtol*largest_singular_value will be considered as zero.
@@ -505,13 +526,13 @@ class MeasurementMatrices:
             eps is the corresponding machine precision of the datatype of a.
             The default is 7e-6.
         rtol_estimate : bool, optional
-            If True, the rtol value will be estimated based on the provided noise 
-            level or signal, which can be passed through **kwargs. If False, 
+            If True, the rtol value will be estimated based on the provided noise
+            level or signal, which can be passed through **kwargs. If False,
             the default rtol value will be used. The default is True.
         **kwargs :
             Additional key-word arguments to be used for the rtol estimation.
-            The keys 'signal' and 'noise_level' can be provided to estimate 
-            the rtol value based on the signal coherence or noise level.      
+            The keys 'signal' and 'noise_level' can be provided to estimate
+            the rtol value based on the signal coherence or noise level.
 
         Returns
         -------
@@ -608,12 +629,12 @@ class MeasurementMatrices:
             eps is the corresponding machine precision of the datatype of a.
             The default is 4e-2.
         rtol_estimate : bool, optional
-            If True, the rtol value will be estimated based on the provided noise 
-            level or signal, which can be passed through **kwargs. If False, 
+            If True, the rtol value will be estimated based on the provided noise
+            level or signal, which can be passed through **kwargs. If False,
             the default rtol value will be used. The default is True.
         **kwargs :
             Additional key-word arguments to be used for the rtol estimation.
-            The keys 'signal' and 'noise_level' can be provided to estimate 
+            The keys 'signal' and 'noise_level' can be provided to estimate
             the rtol value based on the signal coherence or noise level.
 
         Returns
@@ -656,7 +677,7 @@ class MeasurementMatrices:
 
         a = np.zeros((self.number_samples, self.n), dtype=complex)
         b = np.zeros((self.n, self.m), dtype=complex)
-        b[:self.m,:self.m] = scipy.linalg.pinv(np.diag(s), rtol=rtol) # cuttiing of too small singular values, which lead to
+        b[:s.shape[0],:s.shape[0]] = scipy.linalg.pinv(np.diag(s), rtol=rtol)
 
         sigma = vh.T.dot(b.dot(u.T))
         uz = scipy.stats.unitary_group.rvs(self.number_samples) # random unitary matrix
@@ -712,14 +733,14 @@ class MeasurementMatrices:
             eps is the corresponding machine precision of the datatype of a.
             The default is 8e-4.
         rtol_estimate : bool, optional
-            If True, the rtol value will be estimated based on the provided noise 
-            level or signal, which can be passed through **kwargs. If False, 
+            If True, the rtol value will be estimated based on the provided noise
+            level or signal, which can be passed through **kwargs. If False,
             the default rtol value will be used. The default is True.
         **kwargs :
             Additional key-word arguments to be used for the rtol estimation.
-            The keys 'signal' and 'noise_level' can be provided to estimate 
+            The keys 'signal' and 'noise_level' can be provided to estimate
             the rtol value based on the signal coherence or noise level.
- 
+
         Returns
         -------
         ar_matrix : ndarray
@@ -737,7 +758,7 @@ class MeasurementMatrices:
             raise TypeError("beta must be a float or integer.")
         elif beta < 0:
             raise ValueError("beta must be a positive float or integer.")
-        
+
         if mu is not None:
             if not isinstance(mu, (float, int)):
                 raise TypeError("mu must be a float or integer.")
@@ -780,7 +801,7 @@ class MeasurementMatrices:
                 raise ValueError(f"SVD failed: {e}")
             index = s.argsort()[::-1]
             lam = np.average(s[index][:self.number_samples])
-            ar_matrix = np.sqrt(lam) * vh[index,:][:self.number_samples, :] @ scipy.linalg.pinv(self.a_tr, rtol=rtol) # rtol: reduces the rank of the matrix by cuting off small singular values
+            ar_matrix = np.sqrt(lam) * vh[index,:][:self.number_samples, :] @ scipy.linalg.pinv(self.a_tr, rtol=rtol) # rtol: reduces the rank of the matrix by cutting off small singular values
         ar_matrix = self._normalize_matrix(ar_matrix)
         return ar_matrix
 
@@ -795,8 +816,9 @@ class MeasurementMatrices:
         a : ndarray with shape (N,M)
             Matrix to be normalized.
         norm : {non-zero int, inf, -inf, 'fro', 'nuc'}, optional
-            Order of the norm (see table under Notes). inf means numpy's inf object. The default is 2.
-            For further information see doctrings numpy linalg.norm.
+            Order of the norm (see table under Notes). inf means numpy's inf
+            object. The default is 2. For further information see doctrings
+            numpy linalg.norm.
 
         Returns
         -------
@@ -807,7 +829,7 @@ class MeasurementMatrices:
 
         if np.any(np.isnan(norms)) or np.any(np.isinf(norms)): # Check for invalid norms
             norms = np.where(np.isfinite(norms), norms, 1.0)
-        result = np.divide(a, norms, out=np.zeros_like(a, dtype=complex), where=norms != 0) # Divide with zero protection
+        result = np.divide(a, norms, out=np.zeros_like(a), where=norms != 0) # Divide with zero protection
         result = np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0)  # Ensure no NaN columns remain
         return result
 
@@ -848,7 +870,7 @@ class MeasurementMatrices:
 
     @staticmethod
     def __validate_rtol(**kwargs):
-        """ 
+        """
         Validate common parameters across methods.
 
         Raises
@@ -860,14 +882,16 @@ class MeasurementMatrices:
         for key, val in kwargs.items():
             if key == "rtol":
                 if val > 1:
-                    print(f"Warning: {key}={val} is > 1, all singular values are discarded.{key} will be set to 1.")
+                    print(f"Warning: {key}={val} is > 1, all singular values are "\
+                          "discarded.{key} will be set to 1.")
                     key = 1
                 elif val < 0:
-                    print(f"Warning: {key}={val} is < 0, all singular values are retained. {key} will be set to 0.")
+                    print(f"Warning: {key}={val} is < 0, all singular values are "\
+                          "retained. {key} will be set to 0.")
                     key = 0
             elif key == "rtol_estimate":
                 if not isinstance(val, bool):
                     raise ValueError(f"{key} must be a boolean.")
-                
+
 
 # =============================================================================

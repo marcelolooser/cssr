@@ -4,10 +4,10 @@ The filters module of the cssr package provides a class for filtering signals an
 sensing matrices. The Filters class allows users to apply these filters to input
 arrays, either as a critical ingridient for constructing sensing matrices or to
 filter signals itself. Currently it includes various low-pass filters, such as
-ideal low-pass, instrumental, and thermal filters, as well as other general filters 
+ideal low-pass, instrumental, and thermal filters, as well as other general filters
 (high-pass, band-pass, and band-stop filters). In paricular, the instrumental
 and thermal filters are based on specific physical models, as described in the
-reference provided in the documentation. 
+reference provided in the documentation.
 
 
 Created on Wed Mar 17 19:53:02 2021
@@ -48,13 +48,13 @@ def _record_filter(func):
 
 class Filters:
     """
-    The Filters class provides a collection of (primaryly low-pass) filter operators that 
-    are used first and foremost as a central component in constructing sensing matrices, 
-    but can also be applied to signals. In particular, the class is initialized 
-    with a sparsifying matrix or datapoints as its first parameter a0. The class 
-    represents a stateful object whose internal state evolves based on the methods invoked 
+    The Filters class provides a collection of (primaryly low-pass) filter operators that
+    are used first and foremost as a central component in constructing sensing matrices,
+    but can also be applied to signals. In particular, the class is initialized
+    with a sparsifying matrix or datapoints as its first parameter a0. The class
+    represents a stateful object whose internal state evolves based on the methods invoked
     on it.
-    
+
     Parameters
     ----------
     a0 : array like
@@ -62,26 +62,26 @@ class Filters:
     x_signal : array like
         X-components of the signal.
     y_signal : array like, optional
-        Y-components of the signal can be provided iff no cutoff is provided 
-        and a rough estimation of the cutoff frequency is known. The latter 
-        must be provided through the optional parameter threshold_level. 
+        Y-components of the signal can be provided iff no cutoff is provided
+        and a rough estimation of the cutoff frequency is known. The latter
+        must be provided through the optional parameter threshold_level.
         The default is None.
     cutoff : float or list, optional
-        Cutoff "frequency" of filter (expressed in the same units as the fourier 
-        transform of x_signal) or a list of cutoff "frequencies" (that is, band 
-        edges) for a band-pass or band-stop filters. The latter option is used 
-        for FIR and Butterworth filters. For the thermal and instrumental low-pass 
-        filters, this parameter represents the temperature and energy cutoff, 
+        Cutoff "frequency" of filter (expressed in the same units as the fourier
+        transform of x_signal) or a list of cutoff "frequencies" (that is, band
+        edges) for a band-pass or band-stop filters. The latter option is used
+        for FIR and Butterworth filters. For the thermal and instrumental low-pass
+        filters, this parameter represents the temperature and energy cutoff,
         respectively. If no cuttoff is provided, a rough estimation is made.
         The default is None.
     threshold_level : float, optional
-        If cutoff is None, threshold_level will be used to make a rough estimate 
+        If cutoff is None, threshold_level will be used to make a rough estimate
         of the cutoff "frequency" using threshold_level*max(magnitude of y_fft),
         and it is assumed that the used filter is a low-pass filter.
         (This is an experimental feature.) The default is 2e-2.
     filter_signal : bool, optional
-        If True, a filter will be applied to the signal a0. If False, 
-        a filter will be applied to the sparsifying matrix a0. 
+        If True, a filter will be applied to the signal a0. If False,
+        a filter will be applied to the sparsifying matrix a0.
         The default is False.
     """
 
@@ -98,7 +98,7 @@ class Filters:
                 if not (a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1)):
                     raise ValueError("The first argument must be an array of shape (n,) "\
                                     "or (n,1) if filter_signal is True.")
-                else: 
+                else:
                     self._a_tr = self._a_tr.reshape((-1,))
             elif a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1):
                     raise ValueError("The first argument must be an array of shape (n, m) "\
@@ -124,7 +124,7 @@ class Filters:
             if y_signal is not None:
                 print("Warning: y_signal is provided but cutoff is not None; y_signal will "\
                       "be ignored.")
-                
+
         elif cutoff is None:
             if (a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1)):
                 raise ValueError("Missing required third (keyword) argument cutoff.")
@@ -165,7 +165,7 @@ class Filters:
             )
 
 
-    def rest(self):
+    def reset(self):
         """
         Restore the state dependent instances to its initial states.
 
@@ -202,12 +202,12 @@ class Filters:
         Returns
         -------
         cutoff : float or list
-            Cutoff "frequency" (expressed in the 
-            same units as the fourier transform of x_signal) or a 
-            list of cutoff "frequencies" (that is, band edges) for 
-            a band-pass or band-stop filters. For the thermal 
-            and instrumental low-pass filters, this parameter 
-            represents the temperature and energy cutoff, 
+            Cutoff "frequency" (expressed in the
+            same units as the fourier transform of x_signal) or a
+            list of cutoff "frequencies" (that is, band edges) for
+            a band-pass or band-stop filters. For the thermal
+            and instrumental low-pass filters, this parameter
+            represents the temperature and energy cutoff,
             respectively.
         """
         return self._cutoff
@@ -216,13 +216,13 @@ class Filters:
     @cutoff.setter
     def cutoff(self, value):
         """
-        Set the cutoff "frequency" (expressed in the 
-        same units as the fourier transform of x_signal) or a 
-        list of cutoff "frequencies" (that is, band edges) for 
-        a band-pass or band-stop filters. The latter option is 
-        used for FIR and Butterworth filters. For the thermal 
-        and instrumental low-pass filters, this parameter 
-        represents the temperature and energy cutoff, 
+        Set the cutoff "frequency" (expressed in the
+        same units as the fourier transform of x_signal) or a
+        list of cutoff "frequencies" (that is, band edges) for
+        a band-pass or band-stop filters. The latter option is
+        used for FIR and Butterworth filters. For the thermal
+        and instrumental low-pass filters, this parameter
+        represents the temperature and energy cutoff,
         respectively.
 
         Returns
@@ -250,21 +250,21 @@ class Filters:
         Parameters
         ----------
         name_only : bool, optional
-            If True, a list of filter names is returned. 
-            Otherwise, a list of filter names together with the 
+            If True, a list of filter names is returned.
+            Otherwise, a list of filter names together with the
             corresponding arguments, keyword arguments and cutoff
             is returned. The default is False.
 
         Returns
         -------
-        A list of filters applied to a0 in succession. 
+        A list of filters applied to a0 in succession.
         """
 
         if not name_only:
             return self._filter_record
         else:
             return [item[0] for item in self._filter_record]
-    
+
 
     @_record_filter
     def heaviside_lowpass_filter(self, return_array=True):
@@ -274,13 +274,13 @@ class Filters:
         Parameters
         ----------
         return_array : bool, optional
-            If True, returns filtered a0. Otherwise, 
+            If True, returns filtered a0. Otherwise,
             None is returned. The default is True.
 
         Returns
         -------
         a_tr : ndarray or None
-            An ideal low-pass filter convoluted with a0 (denoted as the truncated a0). 
+            An ideal low-pass filter convoluted with a0 (denoted as the truncated a0).
             None if return_array is False.
         """
 
@@ -296,7 +296,7 @@ class Filters:
         A variation of the heaviside step function. The function value is one
         in the interval [-cutoff, cutoff] and otherwise zero. Note, this is done in a
         reversed manner , i.e., (abs(x_fft) > cutoff) instead of (abs(x_fft) < cutoff),
-        due to scipy.fft.fft (alternatively x_fft must be generated with an addional 
+        due to scipy.fft.fft (alternatively x_fft must be generated with an addional
         shift scipy.fft.fftshift).
 
         Returns
@@ -319,18 +319,18 @@ class Filters:
             frequency. The default is 4.
         pass_zero :  {True, False, "bandpass", "lowpass", "highpass", "bandstop"}, optional
             If True, the gain at the frequency 0 (i.e., the "DC gain") is 1. If
-            False, the DC gain is 0. Can also be a string parameter for the desired 
+            False, the DC gain is 0. Can also be a string parameter for the desired
             filter type (equivalent to btype in IIR design functions).
-            If a passband is used the cutoff must be an interval, i.e., 
+            If a passband is used the cutoff must be an interval, i.e.,
             a list of two floats. The default is "lowpass".
         return_array : bool, optional
-            If True, returns filtered a0. Otherwise, 
+            If True, returns filtered a0. Otherwise,
             None is returned. The default is True.
 
         Returns
         -------
         a_tr : ndarray or None
-            A FIR filter convoluted with a0 (denoted as the truncated a0). None if 
+            A FIR filter convoluted with a0 (denoted as the truncated a0). None if
             return_array is False.
         """
 
@@ -355,7 +355,7 @@ class Filters:
             If True, the gain at the frequency 0 (i.e., the "DC gain") is 1. If
             False, the DC gain is 0. Can also be a string parameter for the de-
             sired filter type (equivalent to btype in IIR design functions).
-            If a passband is used the cutoff must be an interval, i.e., 
+            If a passband is used the cutoff must be an interval, i.e.,
             a list of two floats. The default is "lowpass".
 
         Returns
@@ -392,7 +392,7 @@ class Filters:
         btype : {"lowpass", "highpass", "bandpass", "bandstop"}, optional
             Filter type. The default is "lowpass".
         return_array : bool, optional
-            If True, returns filtered a0. Otherwise, 
+            If True, returns filtered a0. Otherwise,
             None is returned. The default is True.
 
         Returns
@@ -410,7 +410,7 @@ class Filters:
 
     def __butter(self, order=4, btype="lowpass"):
         """
-        Butterworth filter implemented via the scipy signal package. 
+        Butterworth filter implemented via the scipy signal package.
         For more information see documentation "butter" in scipy.signal.
 
         Parameters
@@ -451,7 +451,7 @@ class Filters:
         Parameters
         ----------
         return_array : bool, optional
-            If True, returns filtered a0. Otherwise, 
+            If True, returns filtered a0. Otherwise,
             None is returned. The default is True.
 
         Returns
@@ -493,9 +493,9 @@ class Filters:
         """
 
         Vmod = self._cutoff
-        x = self.x.ravel() 
+        x = self.x.ravel()
         x = x - (max(x) + min(x))/2
-  
+
         dx = np.mean(np.diff(x))
         if dx > 1.22 * Vmod: # check if the resolution limit has been breached
             center = np.argmin(abs(x))
@@ -515,7 +515,7 @@ class Filters:
         Parameters
         ----------
         return_array : bool, optional
-            If True, returns filtered a0. Otherwise, 
+            If True, returns filtered a0. Otherwise,
             None is returned. The default is True.
 
         Returns
@@ -602,8 +602,8 @@ class Filters:
     # experimental feature, will be modified in later versions
     def __low_pass_detector(self, threshold_level=2e-2):
         """
-        Detects the lowest passed frequency, provided the threshold is 
-        suited, presuming the signal was band-limited by low-pass filtering. 
+        Detects the lowest passed frequency, provided the threshold is
+        suited, presuming the signal was band-limited by low-pass filtering.
         This function will be modified in later versions.
 
         Parameters
