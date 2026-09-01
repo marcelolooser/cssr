@@ -1,5 +1,5 @@
 """
-Create and save test bench data for the cssr package.
+Module to construct test bench data for the filters module of the cssr package.
 
 @author: marcelo looser
 """
@@ -18,28 +18,9 @@ import cssr
 
 dir_frames = "data_frames/"
 dir_filters = "data_filters/"
-dir_measurement_matrices = "data_measurement_matrices/"
 
 # Set up configurations:
 # ======================
-
-# Frames:
-# -------
-set_frames_heaviside = True
-set_frames_heaviside_overcomplete = True
-save_frames_heaviside = True
-
-set_frames_gaussian = True
-set_frames_gaussian_overcomplete = True
-save_frames_gaussian = True
-
-set_frames_cauchy = True
-set_frames_cauchy_overcomplete = True
-save_frames_cauchy = True
-
-set_frames_fourier = True
-save_frames_fourier = True
-
 
 # Filters:
 # --------
@@ -59,7 +40,7 @@ set_signal_filters_fourier = True
 save_signal_filters_fourier = True
 
 
-# Frammes:
+# Frames:
 # ........
 set_frame_filters_heaviside = True
 set_frame_filters_heaviside_overcomplete = True
@@ -77,10 +58,12 @@ set_frame_filters_fourier = True
 save_frame_filters_fourier = True
 
 
-# Measurement matrices:
-# ---------------------
-save_measurment_marices = True
+# =============================================================================
+# Helper functions
+# =============================================================================
 
+def load_frame_data(dir_frames, frame_name):
+    return np.load(dir_frames + frame_name + ".npz")
 
 # =============================================================================
 # Trial test data
@@ -99,149 +82,6 @@ y_sparse[peaks] = amps
 # =============================================================================
 # Start test data construction
 # =============================================================================
-# =============================================================================
-# Frames
-# =============================================================================
-
-csF = cssr.Frames(x)
-
-# Heaviside:
-# ==========
-
-bw_heaviside = [1, dim//2, dim - 1]
-bw_heaviside_overcomplete = [[None, None], [dim//2 - 3, dim//2 + 3], [dim//2 - 3, dim//2 + 3]]
-ss_heaviside_overcomplete = [None, None, 3]
-
-if set_frames_heaviside:
-    a0_heaviside1 = csF.heaviside(bw_heaviside[0])
-    a0_heaviside2 = csF.heaviside(bw_heaviside[1])
-    a0_heaviside3 = csF.heaviside(bw_heaviside[2])
-
-if set_frames_heaviside_overcomplete:
-    a0_heaviside_overcomplete1 = csF.heaviside_overcomplete(
-        bw_heaviside_overcomplete[0][0], ss_heaviside_overcomplete[0]
-        )
-    a0_heaviside_overcomplete2 = csF.heaviside_overcomplete(
-        bw_heaviside_overcomplete[1], ss_heaviside_overcomplete[1]
-        )
-    a0_heaviside_overcomplete3 = csF.heaviside_overcomplete(
-        bw_heaviside_overcomplete[2], ss_heaviside_overcomplete[2]
-        )
-
-if save_frames_heaviside and set_frames_heaviside and set_frames_heaviside_overcomplete:
-    np.savez(dir_frames + "heaviside",
-             x = x,
-             bw_heaviside = bw_heaviside,
-             bw_heaviside_overcomplete = np.array(bw_heaviside_overcomplete, dtype=float),
-             ss_heaviside_overcomplete = np.array(ss_heaviside_overcomplete, dtype=float),
-
-             a0_heaviside1 = a0_heaviside1,
-             a0_heaviside2 = a0_heaviside2,
-             a0_heaviside3 = a0_heaviside3,
-
-             a0_heaviside_overcomplete1 = a0_heaviside_overcomplete1,
-             a0_heaviside_overcomplete2 = a0_heaviside_overcomplete2,
-             a0_heaviside_overcomplete3 = a0_heaviside_overcomplete3
-             )
-
-
-# Gaussian:
-# =========
-
-bw_gaussian = [abs(x[1] - x[0]), abs(x[-1] - x[0])/2, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
-bw_gaussian_overcomplete = [[None, None], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])]]
-ss_gaussian_overcomplete = [None, None, 3*abs(x[1] - x[0])]
-
-if set_frames_gaussian:
-    a0_gaussian1 = csF.gaussian(bw_gaussian[0])
-    a0_gaussian2 = csF.gaussian(bw_gaussian[1])
-    a0_gaussian3 = csF.gaussian(bw_gaussian[2])
-
-if set_frames_gaussian_overcomplete:
-    a0_gaussian_overcomplete1 = csF.gaussian_overcomplete(
-        bw_gaussian_overcomplete[0][0], ss_gaussian_overcomplete[0]
-        )
-    a0_gaussian_overcomplete2 = csF.gaussian_overcomplete(
-        bw_gaussian_overcomplete[1], ss_gaussian_overcomplete[1]
-        )
-    a0_gaussian_overcomplete3 = csF.gaussian_overcomplete(
-        bw_gaussian_overcomplete[2], ss_gaussian_overcomplete[2]
-        )
-
-if save_frames_gaussian and set_frames_gaussian and set_frames_gaussian_overcomplete:
-    np.savez(dir_frames + "gaussian",
-             x = x,
-             bw_gaussian = bw_gaussian,
-             bw_gaussian_overcomplete = np.array(bw_gaussian_overcomplete, dtype=float),
-             ss_gaussian_overcomplete = np.array(ss_gaussian_overcomplete, dtype=float),
-
-             a0_gaussian1 = a0_gaussian1,
-             a0_gaussian2 = a0_gaussian2,
-             a0_gaussian3 = a0_gaussian3,
-
-             a0_gaussian_overcomplete1 = a0_gaussian_overcomplete1,
-             a0_gaussian_overcomplete2 = a0_gaussian_overcomplete2,
-             a0_gaussian_overcomplete3 = a0_gaussian_overcomplete3
-             )
-
-
-# Cauchy:
-# =======
-
-bw_cauchy = [abs(x[1] - x[0]), abs(x[-1] - x[0])/2, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
-bw_cauchy_overcomplete = [[None, None], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])]]
-ss_cauchy_overcomplete = [None, None, 3*abs(x[1] - x[0])]
-
-if set_frames_cauchy:
-    a0_cauchy1 = csF.cauchy(bw_cauchy[0])
-    a0_cauchy2 = csF.cauchy(bw_cauchy[1])
-    a0_cauchy3 = csF.cauchy(bw_cauchy[2])
-
-if set_frames_cauchy_overcomplete:
-    a0_cauchy_overcomplete1 = csF.cauchy_overcomplete(
-        bw_cauchy_overcomplete[0][0], ss_cauchy_overcomplete[0]
-        )
-    a0_cauchy_overcomplete2 = csF.cauchy_overcomplete(
-        bw_cauchy_overcomplete[1], ss_cauchy_overcomplete[1]
-        )
-    a0_cauchy_overcomplete3 = csF.cauchy_overcomplete(
-        bw_cauchy_overcomplete[2], ss_cauchy_overcomplete[2]
-        )
-
-if save_frames_cauchy and set_frames_cauchy and set_frames_cauchy_overcomplete:
-    np.savez(dir_frames + "cauchy",
-             x = x,
-             bw_cauchy = bw_cauchy,
-             bw_cauchy_overcomplete = np.array(bw_cauchy_overcomplete, dtype=float),
-             ss_cauchy_overcomplete = np.array(ss_cauchy_overcomplete, dtype=float),
-
-             a0_cauchy1 = a0_cauchy1,
-             a0_cauchy2 = a0_cauchy2,
-             a0_cauchy3 = a0_cauchy3,
-
-             a0_cauchy_overcomplete1 = a0_cauchy_overcomplete1,
-             a0_cauchy_overcomplete2 = a0_cauchy_overcomplete2,
-             a0_cauchy_overcomplete3 = a0_cauchy_overcomplete3
-             )
-
-
-
-# Fourier:
-# ========
-
-if set_frames_fourier:
-    a0_fourier1 = csF.fourier()
-
-if save_frames_fourier and set_frames_fourier:
-    np.savez(dir_frames + "fourier",
-             x = x,
-             a0_fourier1 = a0_fourier1
-             )
-
-
-# =============================================================================
-# Filters
-# =============================================================================
 
 cutoffs = [[1, None], [0.6, 1.2], [70, None]] # where 70 is 70° celsius
 
@@ -252,6 +92,13 @@ cutoffs = [[1, None], [0.6, 1.2], [70, None]] # where 70 is 70° celsius
 # ----------
 
 if set_signal_filters_heaviside:
+
+    data = load_frame_data(dir_frames, "heaviside")
+
+    a0_heaviside1 = data["a0_heaviside1"]
+    a0_heaviside2 = data["a0_heaviside2"]
+    a0_heaviside3 = data["a0_heaviside3"]
+
     y_heaviside1 = a0_heaviside1.dot(y_sparse) # to be saved
     y_heaviside2 = a0_heaviside2.dot(y_sparse) # to be saved
     y_heaviside3 = a0_heaviside3.dot(y_sparse) # to be saved
@@ -288,9 +135,9 @@ if set_signal_filters_heaviside:
     y_heaviside_filter2_record1 = csFr_y2_heaviside.filter_record(name_only=True) # to be saved
     y_heaviside_filter3_record1 = csFr_y3_heaviside.filter_record(name_only=True) # to be saved
 
-    csFr_y1_heaviside.rest()
-    csFr_y2_heaviside.rest()
-    csFr_y3_heaviside.rest()
+    csFr_y1_heaviside.reset()
+    csFr_y2_heaviside.reset()
+    csFr_y3_heaviside.reset()
 
     y_heaviside_butter4 = csFr_y1_heaviside.butter_filter()
     y_heaviside_butter5 = csFr_y2_heaviside.butter_filter()
@@ -348,6 +195,13 @@ if save_signal_filters_heaviside and set_signal_filters_heaviside:
 # ---------
 
 if set_signal_filters_gaussian:
+
+    data = load_frame_data(dir_frames, "gaussian")
+
+    a0_gaussian1 = data["a0_gaussian1"]
+    a0_gaussian2 = data["a0_gaussian2"]
+    a0_gaussian3 = data["a0_gaussian3"]
+
     y_gaussian1 = a0_gaussian1.dot(y_sparse) # to be saved
     y_gaussian2 = a0_gaussian2.dot(y_sparse) # to be saved
     y_gaussian3 = a0_gaussian3.dot(y_sparse) # to be saved
@@ -384,9 +238,9 @@ if set_signal_filters_gaussian:
     y_gaussian_filter2_record1 = csFr_y2_gaussian.filter_record(name_only=True) # to be saved
     y_gaussian_filter3_record1 = csFr_y3_gaussian.filter_record(name_only=True) # to be saved
 
-    csFr_y1_gaussian.rest()
-    csFr_y2_gaussian.rest()
-    csFr_y3_gaussian.rest()
+    csFr_y1_gaussian.reset()
+    csFr_y2_gaussian.reset()
+    csFr_y3_gaussian.reset()
 
     y_gaussian_butter4 = csFr_y1_gaussian.butter_filter()
     y_gaussian_butter5 = csFr_y2_gaussian.butter_filter()
@@ -444,6 +298,13 @@ if save_signal_filters_gaussian and set_signal_filters_gaussian:
 # -------
 
 if set_signal_filters_cauchy:
+
+    data = load_frame_data(dir_frames, "cauchy")
+
+    a0_cauchy1 = data["a0_cauchy1"]
+    a0_cauchy2 = data["a0_cauchy2"]
+    a0_cauchy3 = data["a0_cauchy3"]
+
     y_cauchy1 = a0_cauchy1.dot(y_sparse) # to be saved
     y_cauchy2 = a0_cauchy2.dot(y_sparse) # to be saved
     y_cauchy3 = a0_cauchy3.dot(y_sparse) # to be saved
@@ -480,9 +341,9 @@ if set_signal_filters_cauchy:
     y_cauchy_filter2_record1 = csFr_y2_cauchy.filter_record(name_only=True) # to be saved
     y_cauchy_filter3_record1 = csFr_y3_cauchy.filter_record(name_only=True) # to be saved
 
-    csFr_y1_cauchy.rest()
-    csFr_y2_cauchy.rest()
-    csFr_y3_cauchy.rest()
+    csFr_y1_cauchy.reset()
+    csFr_y2_cauchy.reset()
+    csFr_y3_cauchy.reset()
 
     y_cauchy_butter4 = csFr_y1_cauchy.butter_filter()
     y_cauchy_butter5 = csFr_y2_cauchy.butter_filter()
@@ -539,6 +400,11 @@ if save_signal_filters_cauchy and set_signal_filters_cauchy:
 # --------
 
 if set_signal_filters_fourier:
+
+    data = load_frame_data(dir_frames, "fourier")
+
+    a0_fourier1 = data["a0_fourier1"]
+
     y_fourier1 = a0_fourier1.dot(y_sparse) # to be saved
 
     csFr_y1_fourier = cssr.Filters(y_fourier1, x, cutoffs[0][0], filter_signal=True)
@@ -553,7 +419,7 @@ if set_signal_filters_fourier:
 
     y_fourier1_filtered1 = csFr_y1_fourier.truncated_a0 # to be saved
     y_fourier_filter1_record1 = csFr_y1_fourier.filter_record(name_only=True) # to be saved
-    csFr_y1_fourier.rest()
+    csFr_y1_fourier.reset()
 
     y_fourier_butter2 = csFr_y1_fourier.butter_filter()
     y_fourier_instrumental1 = csFr_y1_fourier.instrumental_lowpass_filter()
@@ -587,6 +453,13 @@ if save_signal_filters_fourier and set_signal_filters_fourier:
 # ............
 
 if set_frame_filters_heaviside:
+
+    data = load_frame_data(dir_frames, "heaviside")
+
+    a0_heaviside1 = data["a0_heaviside1"]
+    a0_heaviside2 = data["a0_heaviside2"]
+    a0_heaviside3 = data["a0_heaviside3"]
+
     csFr_a01_heaviside = cssr.Filters(a0_heaviside1, x, cutoffs[0][0])
     csFr_a02_heaviside = cssr.Filters(a0_heaviside2, x, cutoffs[0][0])
     csFr_a03_heaviside = cssr.Filters(a0_heaviside3, x, cutoffs[0][0])
@@ -619,9 +492,9 @@ if set_frame_filters_heaviside:
     a0_heaviside_filter2_record1 = csFr_a02_heaviside.filter_record(name_only=True) # to be saved
     a0_heaviside_filter3_record1 = csFr_a03_heaviside.filter_record(name_only=True) # to be saved
 
-    csFr_a01_heaviside.rest()
-    csFr_a02_heaviside.rest()
-    csFr_a03_heaviside.rest()
+    csFr_a01_heaviside.reset()
+    csFr_a02_heaviside.reset()
+    csFr_a03_heaviside.reset()
 
     a0_heaviside_butter4 = csFr_a01_heaviside.butter_filter()
     a0_heaviside_butter5 = csFr_a02_heaviside.butter_filter()
@@ -653,6 +526,13 @@ if set_frame_filters_heaviside:
 # .........................
 
 if set_frame_filters_heaviside_overcomplete:
+
+    data = load_frame_data(dir_frames, "heaviside")
+
+    a0_heaviside_overcomplete1 = data["a0_heaviside_overcomplete1"]
+    a0_heaviside_overcomplete2 = data["a0_heaviside_overcomplete2"]
+    a0_heaviside_overcomplete3 = data["a0_heaviside_overcomplete3"]
+
     csFr_a01_heaviside_overcomplete = cssr.Filters(a0_heaviside_overcomplete1, x, cutoffs[0][0])
     csFr_a02_heaviside_overcomplete = cssr.Filters(a0_heaviside_overcomplete2, x, cutoffs[0][0])
     csFr_a03_heaviside_overcomplete = cssr.Filters(a0_heaviside_overcomplete3, x, cutoffs[0][0])
@@ -685,9 +565,9 @@ if set_frame_filters_heaviside_overcomplete:
     a0_heaviside_overcomplete_filter2_record1 = csFr_a02_heaviside_overcomplete.filter_record(name_only=True) # to be saved
     a0_heaviside_overcomplete_filter3_record1 = csFr_a03_heaviside_overcomplete.filter_record(name_only=True) # to be saved
 
-    csFr_a01_heaviside_overcomplete.rest()
-    csFr_a02_heaviside_overcomplete.rest()
-    csFr_a03_heaviside_overcomplete.rest()
+    csFr_a01_heaviside_overcomplete.reset()
+    csFr_a02_heaviside_overcomplete.reset()
+    csFr_a03_heaviside_overcomplete.reset()
 
     a0_heaviside_overcomplete_butter4 = csFr_a01_heaviside_overcomplete.butter_filter()
     a0_heaviside_overcomplete_butter5 = csFr_a02_heaviside_overcomplete.butter_filter()
@@ -759,6 +639,13 @@ if save_frame_filters_heaviside and set_frame_filters_heaviside and set_frame_fi
 # ............
 
 if set_frame_filters_gaussian:
+
+    data = load_frame_data(dir_frames, "gaussian")
+
+    a0_gaussian1 = data["a0_gaussian1"]
+    a0_gaussian2 = data["a0_gaussian2"]
+    a0_gaussian3 = data["a0_gaussian3"]
+
     csFr_a01_gaussian = cssr.Filters(a0_gaussian1, x, cutoffs[0][0])
     csFr_a02_gaussian = cssr.Filters(a0_gaussian2, x, cutoffs[0][0])
     csFr_a03_gaussian = cssr.Filters(a0_gaussian3, x, cutoffs[0][0])
@@ -791,9 +678,9 @@ if set_frame_filters_gaussian:
     a0_gaussian_filter2_record1 = csFr_a02_gaussian.filter_record(name_only=True) # to be saved
     a0_gaussian_filter3_record1 = csFr_a03_gaussian.filter_record(name_only=True) # to be saved
 
-    csFr_a01_gaussian.rest()
-    csFr_a02_gaussian.rest()
-    csFr_a03_gaussian.rest()
+    csFr_a01_gaussian.reset()
+    csFr_a02_gaussian.reset()
+    csFr_a03_gaussian.reset()
 
     a0_gaussian_butter4 = csFr_a01_gaussian.butter_filter()
     a0_gaussian_butter5 = csFr_a02_gaussian.butter_filter()
@@ -824,6 +711,13 @@ if set_frame_filters_gaussian:
 # .........................
 
 if set_frame_filters_gaussian_overcomplete:
+
+    data = load_frame_data(dir_frames, "gaussian")
+
+    a0_gaussian_overcomplete1 = data["a0_gaussian_overcomplete1"]
+    a0_gaussian_overcomplete2 = data["a0_gaussian_overcomplete2"]
+    a0_gaussian_overcomplete3 = data["a0_gaussian_overcomplete3"]
+
     csFr_a01_gaussian_overcomplete = cssr.Filters(a0_gaussian_overcomplete1, x, cutoffs[0][0])
     csFr_a02_gaussian_overcomplete = cssr.Filters(a0_gaussian_overcomplete2, x, cutoffs[0][0])
     csFr_a03_gaussian_overcomplete = cssr.Filters(a0_gaussian_overcomplete3, x, cutoffs[0][0])
@@ -856,9 +750,9 @@ if set_frame_filters_gaussian_overcomplete:
     a0_gaussian_overcomplete_filter2_record1 = csFr_a02_gaussian_overcomplete.filter_record(name_only=True) # to be saved
     a0_gaussian_overcomplete_filter3_record1 = csFr_a03_gaussian_overcomplete.filter_record(name_only=True) # to be saved
 
-    csFr_a01_gaussian_overcomplete.rest()
-    csFr_a02_gaussian_overcomplete.rest()
-    csFr_a03_gaussian_overcomplete.rest()
+    csFr_a01_gaussian_overcomplete.reset()
+    csFr_a02_gaussian_overcomplete.reset()
+    csFr_a03_gaussian_overcomplete.reset()
 
     a0_gaussian_overcomplete_butter4 = csFr_a01_gaussian_overcomplete.butter_filter()
     a0_gaussian_overcomplete_butter5 = csFr_a02_gaussian_overcomplete.butter_filter()
@@ -929,6 +823,13 @@ if save_frame_filters_gaussian and set_frame_filters_gaussian and set_frame_filt
 # Dicionaries:
 # ............
 if set_frame_filters_cauchy:
+
+    data = load_frame_data(dir_frames, "cauchy")
+
+    a0_cauchy1 = data["a0_cauchy1"]
+    a0_cauchy2 = data["a0_cauchy2"]
+    a0_cauchy3 = data["a0_cauchy3"]
+
     csFr_a01_cauchy = cssr.Filters(a0_cauchy1, x, cutoffs[0][0])
     csFr_a02_cauchy = cssr.Filters(a0_cauchy2, x, cutoffs[0][0])
     csFr_a03_cauchy = cssr.Filters(a0_cauchy3, x, cutoffs[0][0])
@@ -961,9 +862,9 @@ if set_frame_filters_cauchy:
     a0_cauchy_filter2_record1 = csFr_a02_cauchy.filter_record(name_only=True) # to be saved
     a0_cauchy_filter3_record1 = csFr_a03_cauchy.filter_record(name_only=True) # to be saved
 
-    csFr_a01_cauchy.rest()
-    csFr_a02_cauchy.rest()
-    csFr_a03_cauchy.rest()
+    csFr_a01_cauchy.reset()
+    csFr_a02_cauchy.reset()
+    csFr_a03_cauchy.reset()
 
     a0_cauchy_butter4 = csFr_a01_cauchy.butter_filter()
     a0_cauchy_butter5 = csFr_a02_cauchy.butter_filter()
@@ -993,6 +894,13 @@ if set_frame_filters_cauchy:
 # Overcomplete dicionaries:
 # .........................
 if set_frame_filters_cauchy_overcomplete:
+
+    data = load_frame_data(dir_frames, "cauchy")
+
+    a0_cauchy_overcomplete1 = data["a0_cauchy_overcomplete1"]
+    a0_cauchy_overcomplete2 = data["a0_cauchy_overcomplete2"]
+    a0_cauchy_overcomplete3 = data["a0_cauchy_overcomplete3"]
+
     csFr_a01_cauchy_overcomplete = cssr.Filters(a0_cauchy_overcomplete1, x, cutoffs[0][0])
     csFr_a02_cauchy_overcomplete = cssr.Filters(a0_cauchy_overcomplete2, x, cutoffs[0][0])
     csFr_a03_cauchy_overcomplete = cssr.Filters(a0_cauchy_overcomplete3, x, cutoffs[0][0])
@@ -1025,9 +933,9 @@ if set_frame_filters_cauchy_overcomplete:
     a0_cauchy_overcomplete_filter2_record1 = csFr_a02_cauchy_overcomplete.filter_record(name_only=True) # to be saved
     a0_cauchy_overcomplete_filter3_record1 = csFr_a03_cauchy_overcomplete.filter_record(name_only=True) # to be saved
 
-    csFr_a01_cauchy_overcomplete.rest()
-    csFr_a02_cauchy_overcomplete.rest()
-    csFr_a03_cauchy_overcomplete.rest()
+    csFr_a01_cauchy_overcomplete.reset()
+    csFr_a02_cauchy_overcomplete.reset()
+    csFr_a03_cauchy_overcomplete.reset()
 
     a0_cauchy_overcomplete_butter4 = csFr_a01_cauchy_overcomplete.butter_filter()
     a0_cauchy_overcomplete_butter5 = csFr_a02_cauchy_overcomplete.butter_filter()
@@ -1099,6 +1007,11 @@ if save_frame_filters_cauchy and set_frame_filters_cauchy and set_frame_filters_
 # Dicionaries:
 # ............
 if set_frame_filters_fourier:
+
+    data = load_frame_data(dir_frames, "fourier")
+
+    a0_fourier1 = data["a0_fourier1"]
+
     csFr_a01_fourier = cssr.Filters(a0_fourier1, x, cutoffs[0][0])
 
     a0_fourier_heaviside1 = csFr_a01_fourier.heaviside_lowpass_filter()
@@ -1111,7 +1024,7 @@ if set_frame_filters_fourier:
 
     a0_fourier1_filtered1 = csFr_a01_fourier.truncated_a0 # to be saved
     a0_fourier_filter1_record1 = csFr_a01_fourier.filter_record(name_only=True) # to be saved
-    csFr_a01_fourier.rest()
+    csFr_a01_fourier.reset()
 
     a0_fourier_butter2 = csFr_a01_fourier.butter_filter()
     a0_fourier_instrumental1 = csFr_a01_fourier.instrumental_lowpass_filter()
@@ -1136,9 +1049,5 @@ if save_frame_filters_fourier and set_frame_filters_fourier:
                  a0_fourier_filter1_record2 = a0_fourier_filter1_record2
                  )
 
-# =============================================================================
-# Measurement matrices
-# =============================================================================
 
-# under construction
-
+# =============================================================================
