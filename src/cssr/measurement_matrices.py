@@ -112,7 +112,7 @@ class MeasurementMatrices:
 
     def random_partial_fourier_matrix(self):
         """
-        Random selection of rows and columns of a descrete fourier matrix.
+        Random selection of rows and columns of a discrete fourier matrix.
 
         Returns
         -------
@@ -133,7 +133,7 @@ class MeasurementMatrices:
 
     def random_partial_dct_matrix(self):
         """
-        Random selection of rows and columns of a descrete cosine matrix.
+        Random selection of rows and columns of a discrete cosine matrix.
 
         Returns
         -------

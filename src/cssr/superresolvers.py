@@ -24,8 +24,8 @@ from functools import wraps
 
 def _boost_superresolver(func):
     """
-    A decorator to increase the efficiency and performance of superresolution  
-    modules within the Superresolvers class via a matching pursuit assisted LASSO 
+    A decorator to increase the efficiency and performance of superresolution
+    modules within the Superresolvers class via a matching pursuit assisted LASSO
     algorithm. See reference [1].
 
     Parameters
@@ -51,7 +51,7 @@ def _boost_superresolver(func):
         eta : float, optional
             Hyperparameter to guess the hyperparameter rho. The default is 0.8.
         rho : float, optional
-            Hyperparameter to mitigate "overfitting". The booster can be 
+            Hyperparameter to mitigate "overfitting". The booster can be
             deactivated by setting rho to zero. The default is None.
         max_iter :  int, optional
             Maximum number of iterations. The default is 30.
@@ -65,11 +65,11 @@ def _boost_superresolver(func):
             raise ValueError("eta must be a non-negative float.")
         elif eta < 0:
             raise ValueError("eta must be a non-negative float.")
-        
+
         if isinstance(rho, (int, float)):
             if rho < 0:
                 raise ValueError("rho must be a non-negative float.")
-            
+
         if not isinstance(max_iter, int):
             raise ValueError("max_iter must be a positive integer.")
         elif max_iter < 1:
@@ -79,7 +79,7 @@ def _boost_superresolver(func):
             raise ValueError("atol must be a non-negative float.")
         elif atol < 0:
             raise ValueError("atol must be a non-negative float.")
-        
+
         if rho is None:
             temp1 = (self.a.T.dot(self.ar.dot(args[0].reshape((-1,1))))).ravel()
             rho = np.count_nonzero(temp1 >= eta* np.linalg.norm(temp1, np.inf))
@@ -122,10 +122,10 @@ def _boost_superresolver(func):
 
 class Superresolvers:
     """
-    The Superresolvers class provides a collection of compressive sensing-based 
-    superresolution algorithms for reconstructing signals that admit a sparse 
-    representation in some domain and have been corrupted by a linear operation 
-    such as a low-pass filter, and noise. 
+    The Superresolvers class provides a collection of compressive sensing-based
+    superresolution algorithms for reconstructing signals that admit a sparse
+    representation in some domain and have been corrupted by a linear operation
+    such as a low-pass filter, and noise.
 
     Parameters
     ----------
@@ -191,7 +191,7 @@ class Superresolvers:
         y_hat : array like
             Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of the reconstructed signal y_hat. 
+            Sparse representation of the reconstructed signal y_hat.
             Note, y_sparse_hat is in general of larger in dimension then the
             reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
@@ -214,7 +214,7 @@ class Superresolvers:
         y0 = np.dot(self.a.T, b) # initial vector
 
         vx = cvxpy.Variable((self.n, axes3d), complex=True)
-        vx.value = y0 # assigning initial vector to the vx
+        vx.value = y0
 
         objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
         constraints = [self.a @ vx == b]
@@ -244,7 +244,7 @@ class Superresolvers:
         y_hat : array like
             Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of the reconstructed signal y_hat. 
+            Sparse representation of the reconstructed signal y_hat.
             Note, y_sparse_hat is in general of larger in dimension then the
             reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
@@ -272,7 +272,7 @@ class Superresolvers:
         y0 = np.dot(self.a.T, b) # initial vector
 
         vx = cvxpy.Variable((self.n, axes3d), complex=True)
-        vx.value = y0 # assigning initial vector to the vx
+        vx.value = y0
 
         objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
         constraints = [cvxpy.sum_squares(self.a @ vx - b) <= noise_level]
@@ -294,7 +294,7 @@ class Superresolvers:
         y_signal : array like
             Y-components of the signal.
         lam : float, optional
-            Hyperparameter for the LASSO optimization. If None, lam is 5% of the 
+            Hyperparameter for the LASSO optimization. If None, lam is 5% of the
             magnitude of a_tr.T*y_signal. The default is None.
         l : int, optional
             Maximum number of items that will be included in the active set of atoms
@@ -309,7 +309,7 @@ class Superresolvers:
         y_hat : array like
             Reconstructed y-components from the signal y_signal.
         y_sparse_hat : array like
-            Sparse representation of the reconstructed signal y_hat. 
+            Sparse representation of the reconstructed signal y_hat.
             Note, y_sparse_hat is in general of larger in dimension then the
             reconstructed signal with shape (a0.shape[1], y_signal.shape[1]).
 
@@ -331,7 +331,7 @@ class Superresolvers:
                 raise ValueError("lam must be a float or an integer.")
             elif lam < 0:
                 raise ValueError("lam must be a non-negative float or integer.")
-            
+
         if not isinstance(l, int):
             raise ValueError("l must be a positive integer.")
         elif l < 0:
@@ -350,9 +350,9 @@ class Superresolvers:
             support = range(self.n)
 
         b = self.ar.dot(y_t) # random measured signal
-        y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (proxy vor sparse vector)
+        y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (sparse proxy)
         vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
-        vx.value = y0 # assigning initial vector to the vx, rough guess
+        vx.value = y0 # rough guess
 
         s, sc = [], list(range(y0.shape[0])) # active set and complementary set
         loop_count = 0
@@ -366,7 +366,7 @@ class Superresolvers:
             if not length_usefulness:
                 break
             else:
-                max_items = l * (length_usefulness >= l) + length_usefulness * (length_usefulness < l) # needed if the len(usefulness) is smaller than l
+                max_items = l * (length_usefulness >= l) + length_usefulness * (length_usefulness < l) # needed if len(usefulness) is smaller to l
                 indices_shifted = np.argpartition(usefulness, -max_items)[-max_items:] # searches for the max_items biggest values in usefulness
                 indices = np.array(sc)[indices_shifted]
                 s = list(set(s + list(indices)))
@@ -400,10 +400,10 @@ class Superresolvers:
         noise_level : float
             Magnitude of the estimated noise.
         nnw : int, optional
-            Nearest neighbour rank that will be used to conduct the 
+            Nearest neighbour rank that will be used to conduct the
             search for off-support addition. The default is 9.
         zeta0 : float, optional
-            Fraction of the maximum magnitude attained from the (intermediate) 
+            Fraction of the maximum magnitude attained from the (intermediate)
             reconstructed signal in its sparse representation The default is 0.025.
         dzeta : float, optional
             Step size for increasing zeta0 over each iteration.
@@ -459,9 +459,9 @@ class Superresolvers:
             support = range(self.n)
 
         b = self.ar.dot(y_t) # random measured signal
-        y0 = np.dot(self.a.conj().T, b)[support] if y0 is None else y0 # initial vector (proxy for sparse vector)
+        y0 = np.dot(self.a.conj().T, b)[support] if y0 is None else y0 # initial vector (sparse proxy)
         vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
-        vx.value = y0  # assigning initial vector to the vx
+        vx.value = y0
 
         s, sc = [], [] # the active and inactive atoms in the dictionary respectively
         temp = list(range(y0.shape[0]))
@@ -517,10 +517,10 @@ class Superresolvers:
             Parameter for the LASSO optimization. If None, lam is 5% of the ma-
             gnitude of a_tr.T*y_signal. The default is None.
         nnw : int, optional
-            Nearest neighbour rank that will be used to conduct the 
+            Nearest neighbour rank that will be used to conduct the
             search for off-support addition. The default is 9.
         zeta0 : float, optional
-            Fraction of the maximum magnitude attained from the (intermediate) 
+            Fraction of the maximum magnitude attained from the (intermediate)
             reconstructed signal in its sparse representation The default is 0.025.
         dzeta : float, optional
             Step size for increasing zeta0 over each iteration.
@@ -569,7 +569,7 @@ class Superresolvers:
             raise ValueError("dzeta must be a non-negative float.")
         elif dzeta < 0:
             raise ValueError("dzeta must be a non-negative float.")
-        
+
         if not isinstance(y_signal, np.ndarray):
             raise ValueError("The first argument must be an array.")
         elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
@@ -588,9 +588,9 @@ class Superresolvers:
             nnw = 1
 
         b = self.ar.dot(y_t)  # random measured signal
-        y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (proxy for sparse vector)
+        y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (sparse proxy)
         vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
-        vx.value = y0   # assigning initial vector to the vx
+        vx.value = y0
 
         temp = list(range(y0.shape[0]))
         s, sc = temp, [] # the active and inactive atoms in the dictionary respectively
