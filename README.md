@@ -3,8 +3,8 @@
 *cssr* is a Python package that functions as a Compressed Sensing-based super-resolution framework of 
 (primarily) low-pass filtered and noisy ground truth signals which admit a sparse representation in some domain. 
 
-An elmentary tutorial is avilable in the directory [tutorials](tutorials/). A speciallized introduction 
-to the underlying concepts can be found in the following publication
+An elmentary tutorial and a dedicated scanning-tunneling-microcopy-based tutorial are avilable in the 
+directory [tutorials](tutorials/). A speciallized introduction to the underlying concepts can be found in the following publication
 
 > S. Gazit, A. Szameit, Y. C. Eldar, and M. Segev,
   *Super-resolution and reconstruction of sparse sub-wavelength images*,
