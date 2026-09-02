@@ -5,7 +5,7 @@ sensing matrices. The Filters class allows users to apply these filters to input
 arrays, either as a critical ingridient for constructing sensing matrices or to
 filter signals itself. Currently it includes various low-pass filters, such as
 ideal low-pass, instrumental, and thermal filters, as well as other general filters
-(high-pass, band-pass, and band-stop filters). In paricular, the instrumental
+(high-pass, band-pass, and band-stop filters). In particular, the instrumental
 and thermal filters are based on specific physical models, as described in the
 reference provided in the documentation.
 
@@ -27,7 +27,7 @@ def _record_filter(func):
     """
 
     @wraps(func)
-    def inner(self, return_array=True, *args, **kwargs):
+    def inner(self, *args, **kwargs):
         """
         Parameters
         ----------
@@ -48,7 +48,7 @@ def _record_filter(func):
 
 class Filters:
     """
-    The Filters class provides a collection of (primaryly low-pass) filter operators that
+    The Filters class provides a collection of (primarily low-pass) filter operators that
     are used first and foremost as a central component in constructing sensing matrices,
     but can also be applied to signals. In particular, the class is initialized
     with a sparsifying matrix or datapoints as its first parameter a0. The class
@@ -72,7 +72,7 @@ class Filters:
         edges) for a band-pass or band-stop filters. The latter option is used
         for FIR and Butterworth filters. For the thermal and instrumental low-pass
         filters, this parameter represents the temperature and energy cutoff,
-        respectively. If no cuttoff is provided, a rough estimation is made.
+        respectively. If no cutoff is provided, a rough estimation is made.
         The default is None.
     threshold_level : float, optional
         If cutoff is None, threshold_level will be used to make a rough estimate
@@ -622,8 +622,8 @@ class Filters:
             y_fft = scipy.fft.fftshift(scipy.fft.fft(self.y, axis=0))
             y_fft = y_fft/np.linalg.norm(y_fft, "fro")
             threshold = max(abs(y_fft))*threshold_level
-            cuttoff_arg = next(i for i, item in enumerate(abs(y_fft) >= threshold) if item)
-            self._cutoff = abs(self.x_fft[cuttoff_arg])
+            cutoff_arg = next(i for i, item in enumerate(abs(y_fft) >= threshold) if item)
+            self._cutoff = abs(self.x_fft[cutoff_arg])
             self._cutoff_detector_estimate = True
 
 
