@@ -56,8 +56,8 @@ csF = cssr.Frames(x)
 # Heaviside:
 # ==========
 
-bw_heaviside = [1, dim//2, dim - 1]
-bw_heaviside_overcomplete = [[None, None], [dim//2 - 3, dim//2 + 3], [dim//2 - 3, dim//2 + 3]]
+bw_heaviside = [1, dim//20, dim - 1]
+bw_heaviside_overcomplete = [[None, None], [dim//20 - 3, dim//20 + 3], [dim//20 - 3, dim//20 + 3]]
 ss_heaviside_overcomplete = [None, None, 3]
 
 if set_frames_heaviside:
@@ -96,8 +96,8 @@ if save_frames_heaviside and set_frames_heaviside and set_frames_heaviside_overc
 # Gaussian:
 # =========
 
-bw_gaussian = [abs(x[1] - x[0]), abs(x[-1] - x[0])/2, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
-bw_gaussian_overcomplete = [[None, None], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])]]
+bw_gaussian = [abs(x[1] - x[0]), abs(x[-1] - x[0])/20, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
+bw_gaussian_overcomplete = [[None, None], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])]]
 ss_gaussian_overcomplete = [None, None, 3*abs(x[1] - x[0])]
 
 if set_frames_gaussian:
@@ -136,8 +136,8 @@ if save_frames_gaussian and set_frames_gaussian and set_frames_gaussian_overcomp
 # Cauchy:
 # =======
 
-bw_cauchy = [abs(x[1] - x[0]), abs(x[-1] - x[0])/2, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
-bw_cauchy_overcomplete = [[None, None], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])]]
+bw_cauchy = [abs(x[1] - x[0]), abs(x[-1] - x[0])/20, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
+bw_cauchy_overcomplete = [[None, None], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])]]
 ss_cauchy_overcomplete = [None, None, 3*abs(x[1] - x[0])]
 
 if set_frames_cauchy:

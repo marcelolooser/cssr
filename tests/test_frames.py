@@ -39,7 +39,7 @@ def construct_test_signal_x_components():
 
 
 @pytest.mark.parametrize("frame_name", ["heaviside"], indirect=True)
-def test_heaviside(load_frame_data, construct_test_signal_x_components):
+def test_heaviside_frame(load_frame_data, construct_test_signal_x_components):
     data = load_frame_data
     x = construct_test_signal_x_components
     csF = Frames(x)
@@ -48,8 +48,8 @@ def test_heaviside(load_frame_data, construct_test_signal_x_components):
     # -------------------
 
     dim = len(x)
-    bw_heaviside = [1, dim//2, dim - 1]
-    bw_heaviside_overcomplete = [[None, None], [dim//2 - 3, dim//2 + 3], [dim//2 - 3, dim//2 + 3]]
+    bw_heaviside = [1, dim//20, dim - 1]
+    bw_heaviside_overcomplete = [[None, None], [dim//20 - 3, dim//20 + 3], [dim//20 - 3, dim//20 + 3]]
     ss_heaviside_overcomplete = [None, None, 3]
 
     assert np.array_equal(x, data["x"])
@@ -84,7 +84,7 @@ def test_heaviside(load_frame_data, construct_test_signal_x_components):
 
 
 @pytest.mark.parametrize("frame_name", ["gaussian"], indirect=True)
-def test_gaussian(load_frame_data, construct_test_signal_x_components):
+def test_gaussian_frame(load_frame_data, construct_test_signal_x_components):
     data = load_frame_data
     x = construct_test_signal_x_components
     csF = Frames(x)
@@ -92,8 +92,8 @@ def test_gaussian(load_frame_data, construct_test_signal_x_components):
     # Preliminary checks:
     # -------------------
 
-    bw_gaussian = [abs(x[1] - x[0]), abs(x[-1] - x[0])/2, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
-    bw_gaussian_overcomplete = [[None, None], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])]]
+    bw_gaussian = [abs(x[1] - x[0]), abs(x[-1] - x[0])/20, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
+    bw_gaussian_overcomplete = [[None, None], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])]]
     ss_gaussian_overcomplete = [None, None, 3*abs(x[1] - x[0])]
 
     assert np.array_equal(x, data["x"])
@@ -128,7 +128,7 @@ def test_gaussian(load_frame_data, construct_test_signal_x_components):
 
 
 @pytest.mark.parametrize("frame_name", ["cauchy"], indirect=True)
-def test_cauchy(load_frame_data, construct_test_signal_x_components):
+def test_cauchy_frame(load_frame_data, construct_test_signal_x_components):
     data = load_frame_data
     x = construct_test_signal_x_components
     csF = Frames(x)
@@ -136,8 +136,8 @@ def test_cauchy(load_frame_data, construct_test_signal_x_components):
     # Preliminary checks:
     # -------------------
 
-    bw_cauchy = [abs(x[1] - x[0]), abs(x[-1] - x[0])/2, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
-    bw_cauchy_overcomplete = [[None, None], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/2 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/2 + 3*abs(x[1] - x[0])]]
+    bw_cauchy = [abs(x[1] - x[0]), abs(x[-1] - x[0])/20, abs(x[-1] - x[0]) - abs(x[1] - x[0])]
+    bw_cauchy_overcomplete = [[None, None], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])], [abs(x[-1] - x[0])/20 - 3*abs(x[1] - x[0]), abs(x[-1] - x[0])/20 + 3*abs(x[1] - x[0])]]
     ss_cauchy_overcomplete = [None, None, 3*abs(x[1] - x[0])]
 
     assert np.array_equal(x, data["x"])
@@ -172,7 +172,7 @@ def test_cauchy(load_frame_data, construct_test_signal_x_components):
 
 
 @pytest.mark.parametrize("frame_name", ["fourier"], indirect=True)
-def test_fourier(load_frame_data, construct_test_signal_x_components):
+def test_fourier_frame(load_frame_data, construct_test_signal_x_components):
     data = load_frame_data
     x = construct_test_signal_x_components
     csF = Frames(x)
