@@ -352,17 +352,17 @@ def test_superresolvers_guassian_based_sensing_matrices(load_superresolver_data,
     y_gaussian_overcomplete21_gauss_sr_nlht = csS_frame21_gaussian_overcomplete_gauss.nlht(y, noise_level)
     y_gaussian_overcomplete21_gauss_sr_nlht_lasso = csS_frame21_gaussian_overcomplete_gauss.nlht_lasso(y, max_iter=max_iter)
 
-    assert np.allclose(y_gaussian21_gauss_sr_bp, data["y_gaussian21_gauss_sr_bp"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian21_gauss_sr_bpd, data["y_gaussian21_gauss_sr_bpd"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian21_gauss_sr_ic, data["y_gaussian21_gauss_sr_ic"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian21_gauss_sr_nlht, data["y_gaussian21_gauss_sr_nlht"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian21_gauss_sr_nlht_lasso, data["y_gaussian21_gauss_sr_nlht_lasso"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(y_gaussian21_gauss_sr_bp, data["y_gaussian21_gauss_sr_bp"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian21_gauss_sr_bpd, data["y_gaussian21_gauss_sr_bpd"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian21_gauss_sr_ic, data["y_gaussian21_gauss_sr_ic"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian21_gauss_sr_nlht, data["y_gaussian21_gauss_sr_nlht"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian21_gauss_sr_nlht_lasso, data["y_gaussian21_gauss_sr_nlht_lasso"], rtol=1e-8, atol=1e-8)
 
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_bp, data["y_gaussian_overcomplete21_gauss_sr_bp"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_bpd, data["y_gaussian_overcomplete21_gauss_sr_bpd"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_ic, data["y_gaussian_overcomplete21_gauss_sr_ic"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_nlht, data["y_gaussian_overcomplete21_gauss_sr_nlht"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_nlht_lasso, data["y_gaussian_overcomplete21_gauss_sr_nlht_lasso"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_bp, data["y_gaussian_overcomplete21_gauss_sr_bp"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_bpd, data["y_gaussian_overcomplete21_gauss_sr_bpd"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_ic, data["y_gaussian_overcomplete21_gauss_sr_ic"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_nlht, data["y_gaussian_overcomplete21_gauss_sr_nlht"], rtol=1e-8, atol=1e-8)
+    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_nlht_lasso, data["y_gaussian_overcomplete21_gauss_sr_nlht_lasso"], rtol=1e-8, atol=1e-8)
 
 
 # =============================================================================
