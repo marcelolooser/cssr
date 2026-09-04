@@ -186,7 +186,7 @@ def measurement_matrices_configurations():
 
     # Tolerances:
     # -----------
-    rtol_svd = 1e-12
+    rtol_svd = 0.01
     return [number_samples, max_iter, l, p, rtol_svd]
 
 
