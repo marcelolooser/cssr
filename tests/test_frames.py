@@ -13,7 +13,7 @@ from cssr import Frames
 
 @pytest.fixture
 def dir_frames():
-    return "data/data_frames/"
+    return "tests/data/data_frames/"
 
 
 @pytest.fixture

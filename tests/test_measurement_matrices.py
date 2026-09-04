@@ -19,7 +19,7 @@ from cssr import MeasurementMatrices
 
 @pytest.fixture
 def dir_stubs():
-    return "data/data_stubs/"
+    return "tests/data/data_stubs/"
 
 
 @pytest.fixture
@@ -157,7 +157,7 @@ def mock_random_gaussian(dir_stubs):
 
 @pytest.fixture
 def dir_measurement_matrices():
-    return "data/data_measurement_matrices/"
+    return "tests/data/data_measurement_matrices/"
 
 
 @pytest.fixture

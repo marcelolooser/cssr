@@ -21,7 +21,7 @@ from cssr import Superresolvers
 
 @pytest.fixture
 def dir_stubs():
-    return "data/data_stubs/"
+    return "tests/data/data_stubs/"
 
 
 @pytest.fixture
@@ -159,12 +159,12 @@ def mock_random_gaussian(dir_stubs):
 
 @pytest.fixture
 def dir_filters():
-    return "data/data_filters/"
+    return "tests/data/data_filters/"
 
 
 @pytest.fixture
 def dir_superresolvers():
-    return "data/data_superresolvers/"
+    return "tests/data/data_superresolvers/"
 
 
 @pytest.fixture

@@ -15,7 +15,7 @@ from cssr import Filters
 
 @pytest.fixture
 def dir_filters():
-    return "data/data_filters/"
+    return "tests/data/data_filters/"
 
 
 @pytest.fixture
