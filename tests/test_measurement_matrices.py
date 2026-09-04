@@ -184,10 +184,11 @@ def measurement_matrices_configurations():
     max_iter = 8
     l, p = 3, 3
 
-    # Tolerances:
-    # -----------
-    rtol_svd = 0.01
-    return [number_samples, max_iter, l, p, rtol_svd]
+    # BLAS/LAPACK threshold:
+    # ----------------------
+    bl_threshold = 1e-9
+
+    return [number_samples, max_iter, l, p, bl_threshold]
 
 
 @pytest.fixture
@@ -307,7 +308,7 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
                                               stub_random_unitary_from_data,
                                               monkeypatch):
     data = load_measurement_matrix_data
-    number_samples, max_iter, l, p, rtol_svd = measurement_matrices_configurations
+    number_samples, max_iter, l, p, bl_threshold = measurement_matrices_configurations
     gaussian_filtered_frames = construct_filtered_gaussian_frame
 
 
@@ -357,15 +358,15 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     ar_gaussian22_gdo = csMM_gaussian22.gdo_measurement_matrix(l=l, p=p)
     ar_gaussian21_gdo_adaptive = csMM_gaussian21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian22_gdo_adaptive = csMM_gaussian22.gdo_measurement_matrix_adaptive(l=l, p=p)
-    ar_gaussian21_ajs = csMM_gaussian21.ajs(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_afms = csMM_gaussian21.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_afms = csMM_gaussian22.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_hblz = csMM_gaussian21.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_hblz = csMM_gaussian22.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_ycwg = csMM_gaussian21.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_ycwg = csMM_gaussian22.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_xsfz = csMM_gaussian21.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_xsfz = csMM_gaussian22.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
+    ar_gaussian21_ajs = csMM_gaussian21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian21_afms = csMM_gaussian21.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_afms = csMM_gaussian22.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian21_hblz = csMM_gaussian21.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian22_hblz = csMM_gaussian22.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian21_ycwg = csMM_gaussian21.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_ycwg = csMM_gaussian22.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian21_xsfz = csMM_gaussian21.xsfz(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_xsfz = csMM_gaussian22.xsfz(max_iter=max_iter, rtol_estimate=False)
 
 
 
@@ -387,15 +388,15 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     ar_gaussian_overcomplete22_gdo = csMM_gaussian_overcomplete22.gdo_measurement_matrix(l=l, p=p)
     ar_gaussian_overcomplete21_gdo_adaptive = csMM_gaussian_overcomplete21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian_overcomplete22_gdo_adaptive = csMM_gaussian_overcomplete22.gdo_measurement_matrix_adaptive(l=l, p=p)
-    ar_gaussian_overcomplete21_ajs = csMM_gaussian_overcomplete21.ajs(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_afms = csMM_gaussian_overcomplete21.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_afms = csMM_gaussian_overcomplete22.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_hblz = csMM_gaussian_overcomplete21.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_hblz = csMM_gaussian_overcomplete22.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_ycwg = csMM_gaussian_overcomplete21.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_ycwg = csMM_gaussian_overcomplete22.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_xsfz = csMM_gaussian_overcomplete21.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_xsfz = csMM_gaussian_overcomplete22.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
+    ar_gaussian_overcomplete21_ajs = csMM_gaussian_overcomplete21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete21_afms = csMM_gaussian_overcomplete21.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_afms = csMM_gaussian_overcomplete22.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete21_hblz = csMM_gaussian_overcomplete21.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian_overcomplete22_hblz = csMM_gaussian_overcomplete22.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian_overcomplete21_ycwg = csMM_gaussian_overcomplete21.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_ycwg = csMM_gaussian_overcomplete22.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete21_xsfz = csMM_gaussian_overcomplete21.xsfz(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_xsfz = csMM_gaussian_overcomplete22.xsfz(max_iter=max_iter, rtol_estimate=False)
 
 
     assert np.allclose(ar_gaussian21_gauss, data["ar_gaussian21_gauss"], rtol=1e-9, atol=1e-9)
@@ -409,15 +410,15 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     assert np.allclose(ar_gaussian22_gdo, data["ar_gaussian22_gdo"], rtol=1e-9, atol=1e-9)
     assert np.allclose(ar_gaussian21_gdo_adaptive, data["ar_gaussian21_gdo_adaptive"], rtol=1e-9, atol=1e-9)
     assert np.allclose(ar_gaussian22_gdo_adaptive, data["ar_gaussian22_gdo_adaptive"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_ajs, data["ar_gaussian21_ajs"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_afms, data["ar_gaussian21_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_afms, data["ar_gaussian22_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_hblz, data["ar_gaussian21_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_hblz, data["ar_gaussian22_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_ycwg, data["ar_gaussian21_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_ycwg, data["ar_gaussian22_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_xsfz, data["ar_gaussian21_xsfz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_xsfz, data["ar_gaussian22_xsfz"], rtol=1e-9, atol=1e-9)
+    assert np.linalg.norm(ar_gaussian21_ajs - data["ar_gaussian21_ajs"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian21_afms - data["ar_gaussian21_afms"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian22_afms - data["ar_gaussian22_afms"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian21_hblz - data["ar_gaussian21_hblz"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian22_hblz - data["ar_gaussian22_hblz"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian21_ycwg - data["ar_gaussian21_ycwg"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian22_ycwg - data["ar_gaussian22_ycwg"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian21_xsfz - data["ar_gaussian21_xsfz"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian22_xsfz - data["ar_gaussian22_xsfz"], ord="fro") <= bl_threshold
 
 
     assert np.allclose(ar_gaussian_overcomplete21_gauss, data["ar_gaussian_overcomplete21_gauss"], rtol=1e-9, atol=1e-9)
@@ -431,15 +432,15 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     assert np.allclose(ar_gaussian_overcomplete22_gdo, data["ar_gaussian_overcomplete22_gdo"], rtol=1e-9, atol=1e-9)
     assert np.allclose(ar_gaussian_overcomplete21_gdo_adaptive, data["ar_gaussian_overcomplete21_gdo_adaptive"], rtol=1e-9, atol=1e-9)
     assert np.allclose(ar_gaussian_overcomplete22_gdo_adaptive, data["ar_gaussian_overcomplete22_gdo_adaptive"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_ajs, data["ar_gaussian_overcomplete21_ajs"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_afms, data["ar_gaussian_overcomplete21_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_afms, data["ar_gaussian_overcomplete22_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_hblz, data["ar_gaussian_overcomplete21_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_hblz, data["ar_gaussian_overcomplete22_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_ycwg, data["ar_gaussian_overcomplete21_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_ycwg, data["ar_gaussian_overcomplete22_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_xsfz, data["ar_gaussian_overcomplete21_xsfz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_xsfz, data["ar_gaussian_overcomplete22_xsfz"], rtol=1e-9, atol=1e-9)
+    assert np.linalg.norm(ar_gaussian_overcomplete21_ajs - data["ar_gaussian_overcomplete21_ajs"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete21_afms - data["ar_gaussian_overcomplete21_afms"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete22_afms - data["ar_gaussian_overcomplete22_afms"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete21_hblz - data["ar_gaussian_overcomplete21_hblz"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete22_hblz - data["ar_gaussian_overcomplete22_hblz"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete21_ycwg - data["ar_gaussian_overcomplete21_ycwg"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete22_ycwg - data["ar_gaussian_overcomplete22_ycwg"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete21_xsfz - data["ar_gaussian_overcomplete21_xsfz"], ord="fro") <= bl_threshold
+    assert np.linalg.norm(ar_gaussian_overcomplete22_xsfz - data["ar_gaussian_overcomplete22_xsfz"], ord="fro") <= bl_threshold
 
 
 # =============================================================================

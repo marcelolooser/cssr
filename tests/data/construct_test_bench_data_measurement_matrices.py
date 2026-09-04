@@ -51,9 +51,6 @@ max_iter = 8
 l = 3
 p = 3
 
-# Tolerances:
-# -----------
-rtol_svd = 0.01
 
 # =============================================================================
 # Helper functions
@@ -211,15 +208,15 @@ if set_measurment_marices_gaussian:
     ar_gaussian22_gdo = csMM_gaussian22.gdo_measurement_matrix(l=l, p=p)
     ar_gaussian21_gdo_adaptive = csMM_gaussian21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian22_gdo_adaptive = csMM_gaussian22.gdo_measurement_matrix_adaptive(l=l, p=p)
-    ar_gaussian21_ajs = csMM_gaussian21.ajs(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_afms = csMM_gaussian21.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_afms = csMM_gaussian22.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_hblz = csMM_gaussian21.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_hblz = csMM_gaussian22.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_ycwg = csMM_gaussian21.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_ycwg = csMM_gaussian22.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian21_xsfz = csMM_gaussian21.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian22_xsfz = csMM_gaussian22.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
+    ar_gaussian21_ajs = csMM_gaussian21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian21_afms = csMM_gaussian21.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_afms = csMM_gaussian22.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian21_hblz = csMM_gaussian21.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian22_hblz = csMM_gaussian22.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian21_ycwg = csMM_gaussian21.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_ycwg = csMM_gaussian22.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian21_xsfz = csMM_gaussian21.xsfz(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_xsfz = csMM_gaussian22.xsfz(max_iter=max_iter, rtol_estimate=False)
 
 
 # Overcomplete dicionaries:
@@ -245,15 +242,15 @@ if set_measurment_marices_gaussian_overcomplete:
     ar_gaussian_overcomplete22_gdo = csMM_gaussian_overcomplete22.gdo_measurement_matrix(l=l, p=p)
     ar_gaussian_overcomplete21_gdo_adaptive = csMM_gaussian_overcomplete21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian_overcomplete22_gdo_adaptive = csMM_gaussian_overcomplete22.gdo_measurement_matrix_adaptive(l=l, p=p)
-    ar_gaussian_overcomplete21_ajs = csMM_gaussian_overcomplete21.ajs(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_afms = csMM_gaussian_overcomplete21.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_afms = csMM_gaussian_overcomplete22.afms(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_hblz = csMM_gaussian_overcomplete21.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_hblz = csMM_gaussian_overcomplete22.hblz(l=l, p=p, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_ycwg = csMM_gaussian_overcomplete21.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_ycwg = csMM_gaussian_overcomplete22.ycwg(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete21_xsfz = csMM_gaussian_overcomplete21.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
-    ar_gaussian_overcomplete22_xsfz = csMM_gaussian_overcomplete22.xsfz(max_iter=max_iter, rtol=rtol_svd, rtol_estimate=False)
+    ar_gaussian_overcomplete21_ajs = csMM_gaussian_overcomplete21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete21_afms = csMM_gaussian_overcomplete21.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_afms = csMM_gaussian_overcomplete22.afms(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete21_hblz = csMM_gaussian_overcomplete21.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian_overcomplete22_hblz = csMM_gaussian_overcomplete22.hblz(l=l, p=p, rtol_estimate=False)
+    ar_gaussian_overcomplete21_ycwg = csMM_gaussian_overcomplete21.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_ycwg = csMM_gaussian_overcomplete22.ycwg(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete21_xsfz = csMM_gaussian_overcomplete21.xsfz(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_xsfz = csMM_gaussian_overcomplete22.xsfz(max_iter=max_iter, rtol_estimate=False)
 
 
 if save_measurment_marices_gaussian and set_measurment_marices_gaussian and set_measurment_marices_gaussian_overcomplete:

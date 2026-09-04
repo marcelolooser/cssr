@@ -794,7 +794,7 @@ class MeasurementMatrices:
             gram_old = gram_t
 
             try:
-                _, s, vh = scipy.linalg.svd(self.a_tr, lapack_driver='gesvd')
+                _, s, vh = scipy.linalg.svd(gram_t, lapack_driver='gesvd')
                 if np.max(s) == 0:
                     raise ValueError("a_tr matrix is zero matrix")
             except np.linalg.LinAlgError as e:
