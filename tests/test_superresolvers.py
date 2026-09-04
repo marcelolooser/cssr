@@ -9,12 +9,6 @@ import pytest
 import random
 import numpy as np
 
-# =============================================================================
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from cssr import Frames
 from cssr import Filters
 from cssr import MeasurementMatrices
@@ -371,7 +365,4 @@ def test_superresolvers_guassian_based_sensing_matrices(load_superresolver_data,
     assert np.allclose(y_gaussian_overcomplete21_gauss_sr_nlht_lasso, data["y_gaussian_overcomplete21_gauss_sr_nlht_lasso"])
 
 
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])
+# =============================================================================

@@ -7,13 +7,6 @@ Test module for the frames module of the cssr package.
 
 import pytest
 import numpy as np
-
-# =============================================================================
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from cssr import Frames
 
 # =============================================================================
@@ -190,5 +183,4 @@ def test_fourier_frame(load_frame_data, construct_test_signal_x_components):
     assert np.array_equal(a0_fourier1 , data["a0_fourier1"])
 
 
-if __name__ == "__main__":
-    pytest.main([__file__])
+# =============================================================================

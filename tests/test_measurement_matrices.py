@@ -9,12 +9,6 @@ import pytest
 import random
 import numpy as np
 
-# =============================================================================
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from cssr import Frames
 from cssr import Filters
 from cssr import MeasurementMatrices
@@ -444,6 +438,4 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     assert np.array_equal(ar_gaussian_overcomplete22_xsfz, data["ar_gaussian_overcomplete22_xsfz"])
 
 
-
-if __name__ == "__main__":
-    pytest.main([__file__])
+# =============================================================================

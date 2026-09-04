@@ -178,3 +178,5 @@ if save_frame_stubs_gaussian:
              random_unitary_ns_m_gaussian = random_unitary_ns_m_gaussian
              )
 
+
+# =============================================================================

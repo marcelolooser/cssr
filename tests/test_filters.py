@@ -7,13 +7,6 @@ Test module for the filters module of the cssr package.
 
 import pytest
 import numpy as np
-
-# =============================================================================
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from cssr import Frames
 from cssr import Filters
 
@@ -209,6 +202,4 @@ def test_filtered_gaussian_frame(load_filter_data, construct_test_signal_x_compo
     assert np.array_equal(a0_gaussian_overcomplete2_filtered2, data["a0_gaussian_overcomplete2_filtered2"])
     assert np.array_equal(a0_gaussian_overcomplete_filter2_record2, data["a0_gaussian_overcomplete_filter2_record2"])
 
-
-if __name__ == "__main__":
-    pytest.main([__file__])
+# =============================================================================
