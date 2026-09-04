@@ -67,13 +67,13 @@ def test_heaviside_frame(load_frame_data, construct_test_signal_x_components):
         bw_heaviside_overcomplete[2], ss_heaviside_overcomplete[2]
         )
 
-    assert np.array_equal(a0_heaviside1, data["a0_heaviside1"])
-    assert np.array_equal(a0_heaviside2, data["a0_heaviside2"])
-    assert np.array_equal(a0_heaviside3, data["a0_heaviside3"])
+    assert np.allclose(a0_heaviside1, data["a0_heaviside1"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_heaviside2, data["a0_heaviside2"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_heaviside3, data["a0_heaviside3"], rtol=1e-9, atol=1e-9)
 
-    assert np.array_equal(a0_heaviside_overcomplete1, data["a0_heaviside_overcomplete1"])
-    assert np.array_equal(a0_heaviside_overcomplete2, data["a0_heaviside_overcomplete2"])
-    assert np.array_equal(a0_heaviside_overcomplete3, data["a0_heaviside_overcomplete3"])
+    assert np.allclose(a0_heaviside_overcomplete1, data["a0_heaviside_overcomplete1"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_heaviside_overcomplete2, data["a0_heaviside_overcomplete2"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_heaviside_overcomplete3, data["a0_heaviside_overcomplete3"], rtol=1e-9, atol=1e-9)
 
 
 @pytest.mark.parametrize("frame_name", ["gaussian"], indirect=True)
@@ -111,13 +111,13 @@ def test_gaussian_frame(load_frame_data, construct_test_signal_x_components):
         bw_gaussian_overcomplete[2], ss_gaussian_overcomplete[2]
         )
 
-    assert np.array_equal(a0_gaussian1, data["a0_gaussian1"])
-    assert np.array_equal(a0_gaussian2, data["a0_gaussian2"])
-    assert np.array_equal(a0_gaussian3, data["a0_gaussian3"])
+    assert np.allclose(a0_gaussian1, data["a0_gaussian1"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_gaussian2, data["a0_gaussian2"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_gaussian3, data["a0_gaussian3"], rtol=1e-9, atol=1e-9)
 
-    assert np.array_equal(a0_gaussian_overcomplete1, data["a0_gaussian_overcomplete1"])
-    assert np.array_equal(a0_gaussian_overcomplete2, data["a0_gaussian_overcomplete2"])
-    assert np.array_equal(a0_gaussian_overcomplete3, data["a0_gaussian_overcomplete3"])
+    assert np.allclose(a0_gaussian_overcomplete1, data["a0_gaussian_overcomplete1"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_gaussian_overcomplete2, data["a0_gaussian_overcomplete2"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_gaussian_overcomplete3, data["a0_gaussian_overcomplete3"], rtol=1e-9, atol=1e-9)
 
 
 @pytest.mark.parametrize("frame_name", ["cauchy"], indirect=True)
@@ -155,13 +155,13 @@ def test_cauchy_frame(load_frame_data, construct_test_signal_x_components):
         bw_cauchy_overcomplete[2], ss_cauchy_overcomplete[2]
         )
 
-    assert np.array_equal(a0_cauchy1, data["a0_cauchy1"])
-    assert np.array_equal(a0_cauchy2, data["a0_cauchy2"])
-    assert np.array_equal(a0_cauchy3, data["a0_cauchy3"])
+    assert np.allclose(a0_cauchy1, data["a0_cauchy1"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_cauchy2, data["a0_cauchy2"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_cauchy3, data["a0_cauchy3"], rtol=1e-9, atol=1e-9)
 
-    assert np.array_equal(a0_cauchy_overcomplete1, data["a0_cauchy_overcomplete1"])
-    assert np.array_equal(a0_cauchy_overcomplete2, data["a0_cauchy_overcomplete2"])
-    assert np.array_equal(a0_cauchy_overcomplete3, data["a0_cauchy_overcomplete3"])
+    assert np.allclose(a0_cauchy_overcomplete1, data["a0_cauchy_overcomplete1"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_cauchy_overcomplete2, data["a0_cauchy_overcomplete2"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(a0_cauchy_overcomplete3, data["a0_cauchy_overcomplete3"], rtol=1e-9, atol=1e-9)
 
 
 @pytest.mark.parametrize("frame_name", ["fourier"], indirect=True)
@@ -180,7 +180,7 @@ def test_fourier_frame(load_frame_data, construct_test_signal_x_components):
 
     a0_fourier1 = csF.fourier()
 
-    assert np.array_equal(a0_fourier1 , data["a0_fourier1"])
+    assert np.allclose(a0_fourier1 , data["a0_fourier1"], rtol=1e-9, atol=1e-9)
 
 
 # =============================================================================

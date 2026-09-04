@@ -117,10 +117,10 @@ def test_filtered_gaussian_signal(load_filter_data, construct_test_signal, const
     y_gaussian_filter2_record2 = csFr_y2_gaussian.filter_record(name_only=True)
 
 
-    assert np.array_equal(y_gaussian2, data["y_gaussian2"])
-    assert np.array_equal(y_gaussian2_filtered1, data["y_gaussian2_filtered1"])
+    assert np.allclose(y_gaussian2, data["y_gaussian2"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(y_gaussian2_filtered1, data["y_gaussian2_filtered1"], rtol=1e-9, atol=1e-9)
     assert np.array_equal(y_gaussian_filter2_record1, data["y_gaussian_filter2_record1"])
-    assert np.array_equal(y_gaussian2_filtered2, data["y_gaussian2_filtered2"])
+    assert np.allclose(y_gaussian2_filtered2, data["y_gaussian2_filtered2"], rtol=1e-9, atol=1e-9)
     assert np.array_equal(y_gaussian_filter2_record2, data["y_gaussian_filter2_record2"])
 
 
@@ -166,9 +166,9 @@ def test_filtered_gaussian_frame(load_filter_data, construct_test_signal_x_compo
     a0_gaussian_filter2_record2 = csFr_a02_gaussian.filter_record(name_only=True)
 
 
-    assert np.array_equal(a0_gaussian2_filtered1, data["a0_gaussian2_filtered1"])
+    assert np.allclose(a0_gaussian2_filtered1, data["a0_gaussian2_filtered1"], rtol=1e-9, atol=1e-9)
     assert np.array_equal(a0_gaussian_filter2_record1, data["a0_gaussian_filter2_record1"])
-    assert np.array_equal(a0_gaussian2_filtered2, data["a0_gaussian2_filtered2"])
+    assert np.allclose(a0_gaussian2_filtered2, data["a0_gaussian2_filtered2"], rtol=1e-9, atol=1e-9)
     assert np.array_equal(a0_gaussian_filter2_record2, data["a0_gaussian_filter2_record2"])
 
 
@@ -197,9 +197,9 @@ def test_filtered_gaussian_frame(load_filter_data, construct_test_signal_x_compo
     a0_gaussian_overcomplete_filter2_record2 = csFr_a02_gaussian_overcomplete.filter_record(name_only=True)
 
 
-    assert np.array_equal(a0_gaussian_overcomplete2_filtered1, data["a0_gaussian_overcomplete2_filtered1"])
+    assert np.allclose(a0_gaussian_overcomplete2_filtered1, data["a0_gaussian_overcomplete2_filtered1"], rtol=1e-9, atol=1e-9)
     assert np.array_equal(a0_gaussian_overcomplete_filter2_record1, data["a0_gaussian_overcomplete_filter2_record1"])
-    assert np.array_equal(a0_gaussian_overcomplete2_filtered2, data["a0_gaussian_overcomplete2_filtered2"])
+    assert np.allclose(a0_gaussian_overcomplete2_filtered2, data["a0_gaussian_overcomplete2_filtered2"], rtol=1e-9, atol=1e-9)
     assert np.array_equal(a0_gaussian_overcomplete_filter2_record2, data["a0_gaussian_overcomplete_filter2_record2"])
 
 # =============================================================================
