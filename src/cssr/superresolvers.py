@@ -387,7 +387,7 @@ class Superresolvers:
         return y_hat, y_sparse_hat
 
 
-    def nlht(self, y_signal, noise_level, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
+    def nlht(self, y_signal, noise_level, max_iter=30, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
         """
         Basis pursuit denoising via non-local hard threshholding, a spectral
         projected gradient method for L1 minimization with SPGL1 + off-support
@@ -399,6 +399,8 @@ class Superresolvers:
             Y-components of the signal.
         noise_level : float
             Magnitude of the estimated noise.
+        max_iter : int, optional
+            Maximum number of iterations. The default is 20.
         nnw : int, optional
             Nearest neighbour rank that will be used to conduct the
             search for off-support addition. The default is 9.
@@ -452,6 +454,11 @@ class Superresolvers:
         elif dzeta < 0:
             raise ValueError("dzeta must be a non-negative float.")
 
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 0:
+            raise ValueError("max_iter must be a positive integer.")
+
         y_t = y_signal.reshape((-1,1))
         _, axes3d = y_t.shape
 
@@ -467,7 +474,7 @@ class Superresolvers:
         temp = list(range(y0.shape[0]))
         loop_count = 0
 
-        while len(sc) <= np.count_nonzero(abs(vx.value) < 0.): # the conditional statements were made to enter the while loop
+        while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
 
             red = self._reduce(temp, sc)
             objective = cvxpy.Minimize(cvxpy.norm(vx[red,:], 1))
@@ -496,14 +503,13 @@ class Superresolvers:
         if loop_count == 0:
             red = temp
 
-
         y_sparse_hat = vx.value # recovered sparse signal
         y_hat = self.a0[:,support].dot(y_sparse_hat)
         return y_hat, y_sparse_hat
 
 
     @_boost_superresolver
-    def nlht_lasso(self, y_signal, lam=None, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
+    def nlht_lasso(self, y_signal, max_iter=30, lam=None, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
         """
         Basis pursuit denoising via non-local hard threshholding (lasso form),
         a spectral projected gradient method for L1 minimization with SPGL1 +
@@ -516,6 +522,8 @@ class Superresolvers:
         lam : float, optional
             Parameter for the LASSO optimization. If None, lam is 5% of the ma-
             gnitude of a_tr.T*y_signal. The default is None.
+        max_iter : int, optional
+            Maximum number of iterations. The default is 20.
         nnw : int, optional
             Nearest neighbour rank that will be used to conduct the
             search for off-support addition. The default is 9.
@@ -575,6 +583,11 @@ class Superresolvers:
         elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
             raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
 
+        if not isinstance(max_iter, int):
+            raise ValueError("max_iter must be a positive integer.")
+        elif max_iter < 0:
+            raise ValueError("max_iter must be a positive integer.")
+
         y_t = y_signal.reshape((-1,1))
         _, axes3d = y_t.shape
 
@@ -598,7 +611,8 @@ class Superresolvers:
         loop_count = 0
         objective = cvxpy.Minimize(0.5 * cvxpy.sum_squares(self.a[:,support] @ vx - b) + lam * cvxpy.norm(vx, 1))
         prob = cvxpy.Problem(objective)
-        while len(sc) <= np.count_nonzero(abs(vx.value) < 0.): # the conditional statements were made to enter the while loop
+
+        while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
 
             prob.solve(solver=solver)
             if len(sc):
@@ -620,7 +634,6 @@ class Superresolvers:
                 if nnw == 0:
                     break
             loop_count += 1
-
 
         y_sparse_hat = vx.value  # recovered sparse signal
         y_hat = self.a0[:,support][:,s].dot(y_sparse_hat[s,:])
