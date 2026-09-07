@@ -72,6 +72,12 @@ class MeasurementMatrices:
             )
 
 
+    @property
+    def welch_bound(self):
+        """ Computes the Welch bound."""
+        return np.sqrt((self.n - self.number_samples)/(self.number_samples*(self.n-1)))
+
+
     def random_gauss_matrix(self):
         """
         Matrix from randomly chosen values of the gaussian distribution (normalized).
@@ -321,7 +327,7 @@ class MeasurementMatrices:
 
         if not isinstance(eta, (float, int)):
             raise TypeError("eta must be a float or integer.")
-        elif beta < 0:
+        elif eta < 0:
             raise ValueError("eta must be a positive float or integer.")
 
         if not (isinstance(l, int) and isinstance(p, int)):
@@ -432,7 +438,7 @@ class MeasurementMatrices:
 
         gamma = ar_matrix.dot(p)
         z = np.diag(eigv)
-        z = scipy.linalg.pinv(z, rtol=rtol)
+        z = self.__canonical_pinv(z, rtol=rtol)
         for _ in range(max_iter):
             gamma = self._normalize_matrix(gamma)
             gamma = gamma - eta* gamma.dot(gamma.T.dot(gamma) - z)
@@ -499,7 +505,7 @@ class MeasurementMatrices:
         for _ in range(max_iter):
             d = d - eta * d.dot(d.T.dot(d) - idn)
             d = self._normalize_matrix(d)
-        ar_matrix = d.dot(scipy.linalg.pinv(self.a_tr, rtol=rtol))
+        ar_matrix = d.dot(self.__canonical_pinv(self.a_tr, rtol=rtol))
         ar_matrix = self._normalize_matrix(ar_matrix)
         return ar_matrix
 
@@ -572,7 +578,7 @@ class MeasurementMatrices:
             mu = mu_opt + 1e-3 if mu < mu_opt else mu
 
         try:
-            u, s, vh = scipy.linalg.svd(self.a_tr, lapack_driver='gesvd')
+            u, s, vh = scipy.linalg.svd(self.a_tr)
             if np.max(s) == 0:
                 raise ValueError("a_tr matrix is zero matrix")
         except np.linalg.LinAlgError as e:
@@ -600,7 +606,7 @@ class MeasurementMatrices:
                 binary_temp = (eigv > 0.)
                 omega = (uj*np.sqrt(eigv*binary_temp)) + omega*(1 - binary_temp)
 
-            ar_matrix[:, :self.number_samples] = omega.dot(scipy.linalg.pinv(sigma, rtol=rtol))
+            ar_matrix[:, :self.number_samples] = omega.dot(self.__canonical_pinv(sigma, rtol=rtol))
             ar_matrix = ar_matrix.dot(u.T)
         ar_matrix = self._normalize_matrix(ar_matrix)
         return ar_matrix
@@ -666,7 +672,7 @@ class MeasurementMatrices:
             rtol = self.__estimate_rtol_adaptive(rtol_default=rtol, **kwargs)
 
         try:
-            u, s, vh = scipy.linalg.svd(self.a_tr, lapack_driver='gesvd')
+            u, s, vh = self.__canonical_svd(self.a_tr)
             if np.max(s) == 0:
                 raise ValueError("a_tr matrix is zero matrix")
         except np.linalg.LinAlgError as e:
@@ -677,7 +683,7 @@ class MeasurementMatrices:
 
         a = np.zeros((self.number_samples, self.n), dtype=complex)
         b = np.zeros((self.n, self.m), dtype=complex)
-        b[:s.shape[0],:s.shape[0]] = scipy.linalg.pinv(np.diag(s), rtol=rtol)
+        b[:s.shape[0],:s.shape[0]] = self.__canonical_pinv(np.diag(s), rtol=rtol)
 
         sigma = vh.T.dot(b.dot(u.T))
         uz = scipy.stats.unitary_group.rvs(self.number_samples) # random unitary matrix
@@ -794,14 +800,14 @@ class MeasurementMatrices:
             gram_old = gram_t
 
             try:
-                _, s, vh = scipy.linalg.svd(gram_t, lapack_driver='gesvd')
+                _, s, vh = self.__canonical_svd(gram_t)
                 if np.max(s) == 0:
                     raise ValueError("a_tr matrix is zero matrix")
             except np.linalg.LinAlgError as e:
                 raise ValueError(f"SVD failed: {e}")
             index = s.argsort()[::-1]
             lam = np.average(s[index][:self.number_samples])
-            ar_matrix = np.sqrt(lam) * vh[index,:][:self.number_samples, :] @ scipy.linalg.pinv(self.a_tr, rtol=rtol) # rtol: reduces the rank of the matrix by cutting off small singular values
+            ar_matrix = np.sqrt(lam) * vh[index,:][:self.number_samples, :] @ self.__canonical_pinv(self.a_tr, rtol=rtol) # rtol: reduces the rank of the matrix by cutting off small singular values
         ar_matrix = self._normalize_matrix(ar_matrix)
         return ar_matrix
 
@@ -834,16 +840,10 @@ class MeasurementMatrices:
         return result
 
 
-    @property
-    def welch_bound(self):
-        """ Computes the Welch bound."""
-        return np.sqrt((self.n - self.number_samples)/(self.number_samples*(self.n-1)))
-
-
     def __estimate_rtol_adaptive(self, rtol_default=1e-8, signal=None, noise_level=None):
         """ Smart rtol selection considering full system."""
         try:
-            _, s, _ = scipy.linalg.svd(self.a_tr, lapack_driver='gesvd')
+            _, s, _ = self.__canonical_svd(self.a_tr)
             if np.max(s) == 0:
                 raise ValueError("a_tr matrix is a zero matrix")
         except np.linalg.LinAlgError as e:
@@ -892,6 +892,43 @@ class MeasurementMatrices:
             elif key == "rtol_estimate":
                 if not isinstance(val, bool):
                     raise ValueError(f"{key} must be a boolean.")
+
+
+    @staticmethod
+    def __canonical_svd(mat):
+        """
+        Cross-plaform stabilized SVD. Enforce canonical order and sign conventions.
+        """
+        u, s, vh = scipy.linalg.svd(mat, lapack_driver='gesvd')
+
+        idx = np.argsort(s)[::-1]
+        s = s[idx]
+        u = u[:, idx]
+        vh = vh[idx, :]
+
+        max_abs_cols = np.argmax(np.abs(u), axis=0)
+        signs = np.sign(u[max_abs_cols, np.arange(u.shape[1])])
+        signs[signs == 0] = 1
+
+        u *= signs
+        vh *= signs[:, np.newaxis]
+        return [u, s, vh]
+
+
+    def __canonical_pinv(self, mat, rtol=1e-12):
+        """
+        Cross-plaform stabilized Moore-Penrose pseudo-inverse.
+        """
+        u, s, vh = self.__canonical_svd(mat)
+
+        cutoff = rtol * np.max(s)
+        above_cutoff = s > cutoff
+
+        s_inv = np.zeros_like(s)
+        s_inv[above_cutoff] = 1.0 / s[above_cutoff]
+
+        V_s_inv = vh.T * s_inv
+        return V_s_inv.dot(u.T)
 
 
 # =============================================================================
