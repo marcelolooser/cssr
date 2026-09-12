@@ -159,12 +159,12 @@ def mock_random_gaussian(dir_stubs):
 
 @pytest.fixture
 def dir_filters():
-    return "data/data_filters/"
+    return "tests/data/data_filters/"
 
 
 @pytest.fixture
 def dir_measurement_matrices():
-    return "data/data_measurement_matrices/"
+    return "tests/data/data_measurement_matrices/"
 
 
 @pytest.fixture
