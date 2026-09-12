@@ -270,7 +270,7 @@ class MeasurementMatrices:
             sensing_matrix = ar_matrix.dot(self.a_tr)
             gram = sensing_matrix.T.dot(sensing_matrix)
             gram = mu * np.sign(gram) * (abs(gram) > mu) + gram * (abs(gram) <= mu)
-            gram.ravel()[::self.n+1] = 1 # assigning 1 to diagonal elements
+            gram.ravel()[::self.n+1] = 1
 
             for _ in range(p):
                 sensing_matrix = self._normalize_matrix(ar_matrix.dot(self.a_tr))
@@ -336,7 +336,7 @@ class MeasurementMatrices:
             raise ValueError("l and p must be positive integers.")
 
         self.a_tr = self._normalize_matrix(self.a_tr, 1)
-        ar_matrix = np.sqrt(1/self.number_samples) * np.random.randn(self.number_samples, self.m)
+        ar_matrix = self.random_gauss_matrix()
         mu_opt = self.welch_bound
 
         if mu is None:
@@ -348,7 +348,7 @@ class MeasurementMatrices:
             sensing_matrix = ar_matrix.dot(self.a_tr)
             gram = sensing_matrix.T.dot(sensing_matrix)
             gram = mu * np.sign(gram) * (abs(gram) > mu) + gram * (abs(gram) <= mu)
-            gram.ravel()[::self.n+1] = 1 # assigning 1 to diagonal elements
+            gram.ravel()[::self.n+1] = 1
 
             for _ in range(p):
 
@@ -427,21 +427,20 @@ class MeasurementMatrices:
 
         self.__validate_rtol(rtol=rtol, rtol_estimate=rtol_estimate)
 
-        ar_matrix = np.sqrt(1/self.number_samples) * self.random_gauss_matrix()
+        ar_matrix = self.random_gauss_matrix()
 
         try:
-            eigv, p = scipy.linalg.eig(self.a_tr.dot(self.a_tr.T))
+            eigv, p = self.__canonical_eigh(self.a_tr.dot(self.a_tr.T))
             if np.any(np.isnan(eigv)) or np.any(np.isinf(eigv)):
                 raise ValueError("Eigendecomposition produced NaN/Inf")
         except np.linalg.LinAlgError as e:
             raise ValueError(f"Eigendecomposition failed: {e}")
 
         gamma = ar_matrix.dot(p)
-        z = np.diag(eigv)
-        z = self.__canonical_pinv(z, rtol=rtol)
+        z = self.__canonical_pinv(np.diag(eigv), rtol=rtol)
         for _ in range(max_iter):
+            gamma = gamma - eta * gamma.dot(gamma.T.dot(gamma) - z)
             gamma = self._normalize_matrix(gamma)
-            gamma = gamma - eta* gamma.dot(gamma.T.dot(gamma) - z)
         ar_matrix = gamma.dot(p.T)
         return ar_matrix
 
@@ -578,18 +577,19 @@ class MeasurementMatrices:
             mu = mu_opt + 1e-3 if mu < mu_opt else mu
 
         try:
-            u, s, vh = scipy.linalg.svd(self.a_tr)
+            u, s, vh = self.__canonical_svd(self.a_tr)
             if np.max(s) == 0:
                 raise ValueError("a_tr matrix is zero matrix")
         except np.linalg.LinAlgError as e:
             raise ValueError(f"SVD failed: {e}")
 
         sigma = np.diag(s[:self.number_samples])
+        sigma_inv = self.__canonical_pinv(sigma, rtol=rtol)
         for _ in range(l):
-            sensing_matrix = ar_matrix.dot(self.a_tr)
+            sensing_matrix = self._normalize_matrix(ar_matrix.dot(self.a_tr))
             gram = sensing_matrix.T.dot(sensing_matrix)
             gram = mu * np.sign(gram) * (abs(gram) > mu) + gram * (abs(gram) <= mu)
-            gram.ravel()[::self.n+1] = 1. # assigning 1 to diagonal elements
+            gram.ravel()[::self.n+1] = 1
 
             gram = vh.dot(gram.dot(vh.T))
             omega = ar_matrix[:,:self.number_samples].dot(sigma)
@@ -597,7 +597,7 @@ class MeasurementMatrices:
                 ej = gram[:self.number_samples, :self.number_samples] - omega.T.dot(omega)
 
                 try:
-                    eigv, uj = scipy.linalg.eig(ej)
+                    eigv, uj = self.__canonical_eigh(ej)
                     if np.any(np.isnan(eigv)) or np.any(np.isinf(eigv)):
                         raise ValueError("Eigendecomposition produced NaN/Inf")
                 except np.linalg.LinAlgError as e:
@@ -606,13 +606,12 @@ class MeasurementMatrices:
                 binary_temp = (eigv > 0.)
                 omega = (uj*np.sqrt(eigv*binary_temp)) + omega*(1 - binary_temp)
 
-            ar_matrix[:, :self.number_samples] = omega.dot(self.__canonical_pinv(sigma, rtol=rtol))
+            ar_matrix[:, :self.number_samples] = omega.dot(sigma_inv)
             ar_matrix = ar_matrix.dot(u.T)
         ar_matrix = self._normalize_matrix(ar_matrix)
         return ar_matrix
 
 
-    # hard to compute for large matrices, due to the gram matrix
     def ycwg(self, c=0.015, max_iter=30, rtol=4e-2, rtol_estimate=True, **kwargs):
         """
         Alternating minimization method for measurement matrix optimization
@@ -697,11 +696,9 @@ class MeasurementMatrices:
             gram.ravel()[::self.n+1] = 1
 
             try:
-                eigv, p = scipy.linalg.eigh(gram)
+                eigv, p = self.__canonical_eigh(gram)
                 if np.any(np.isnan(eigv)) or np.any(np.isinf(eigv)):
                     raise ValueError("Eigendecomposition produced NaN/Inf")
-                if np.any(eigv < 0):
-                    eigv = np.maximum(eigv, 0)  # Clip negative eigenvalues to 0
             except np.linalg.LinAlgError as e:
                 raise ValueError(f"Eigendecomposition failed: {e}")
 
@@ -713,9 +710,7 @@ class MeasurementMatrices:
         return ar_matrix
 
 
-    # the pseudo inverse makes this method infeasible for large problems
-    # hard to compute for large matrices, due to the gram matrix
-    def xsfz(self, mu=None, beta=0.55, max_iter=10, rtol=8e-4, rtol_estimate=True, **kwargs):
+    def xsfz(self, mu=None, beta=0.55, max_iter=10, rtol=3e-2, rtol_estimate=True, **kwargs):
         """
         ETF-based iterative minimization method for measurement matrix
         optimization using a Takenaka–Malmquist dictionary to reduce mutual
@@ -792,19 +787,20 @@ class MeasurementMatrices:
         gram_old = 0
         for _ in range(max_iter):
             sensing_matrix = self._normalize_matrix((ar_matrix.dot(self.a_tr)))
-            gram_t = sensing_matrix.T.dot(sensing_matrix)
+            gram = sensing_matrix.T.dot(sensing_matrix)
 
-            gram_t = mu * np.sign(gram_t) * (abs(gram_t) > mu) + gram_t * (abs(gram_t) <= mu)
-            gram_t.ravel()[::self.n+1] = 1 # assigning 1 to diagonal elements
-            gram_t = beta * gram_t + (1 - beta) * gram_old
-            gram_old = gram_t
+            gram = mu * np.sign(gram) * (abs(gram) > mu) + gram * (abs(gram) <= mu)
+            gram.ravel()[::self.n+1] = 1
+            gram = beta * gram + (1 - beta) * gram_old
+            gram_old = gram
 
             try:
-                _, s, vh = self.__canonical_svd(gram_t)
+                _, s, vh = self.__canonical_svd(gram)
                 if np.max(s) == 0:
                     raise ValueError("a_tr matrix is zero matrix")
             except np.linalg.LinAlgError as e:
                 raise ValueError(f"SVD failed: {e}")
+
             index = s.argsort()[::-1]
             lam = np.average(s[index][:self.number_samples])
             ar_matrix = np.sqrt(lam) * vh[index,:][:self.number_samples, :] @ self.__canonical_pinv(self.a_tr, rtol=rtol) # rtol: reduces the rank of the matrix by cutting off small singular values
@@ -861,7 +857,7 @@ class MeasurementMatrices:
             rtol_estimate = s_max / (cond_number * (1 + coherence)) # Coherence dependent precision
 
         elif noise_level is not None: # Use noise level
-            rtol_estimate = (9 * noise_level) / s_max # 3-sigma
+            rtol_estimate = (9 * noise_level) / s_max # 9-sigma
         else:
             rtol_estimate = 1 / cond_number * 0.1 # Conservative default
 
@@ -882,12 +878,12 @@ class MeasurementMatrices:
         for key, val in kwargs.items():
             if key == "rtol":
                 if val > 1:
-                    print(f"Warning: {key}={val} is > 1, all singular values are "\
-                          "discarded.{key} will be set to 1.")
+                    print(f"Warning: {key}={val} is greater than 1, all singular values are "\
+                          f"discarded. {key} will be set to 1.")
                     key = 1
                 elif val < 0:
-                    print(f"Warning: {key}={val} is < 0, all singular values are "\
-                          "retained. {key} will be set to 0.")
+                    print(f"Warning: {key}={val} is smaller than 0, all singular values are "\
+                          f"retained. {key} will be set to 0.")
                     key = 0
             elif key == "rtol_estimate":
                 if not isinstance(val, bool):
@@ -895,40 +891,31 @@ class MeasurementMatrices:
 
 
     @staticmethod
-    def __canonical_svd(mat):
-        """
-        Cross-plaform stabilized SVD. Enforce canonical order and sign conventions.
-        """
-        u, s, vh = scipy.linalg.svd(mat, lapack_driver='gesvd')
-
-        idx = np.argsort(s)[::-1]
-        s = s[idx]
-        u = u[:, idx]
-        vh = vh[idx, :]
-
-        max_abs_cols = np.argmax(np.abs(u), axis=0)
-        signs = np.sign(u[max_abs_cols, np.arange(u.shape[1])])
-        signs[signs == 0] = 1
-
-        u *= signs
-        vh *= signs[:, np.newaxis]
+    def __canonical_svd(mat, regularization_coef=1e-16, regularize=False):
+        rho = 0
+        if regularize:
+            cond = np.linalg.cond(mat) if np.linalg.cond(mat) < 10/regularization_coef else 10/regularization_coef
+            rho = regularization_coef * cond * scipy.linalg.norm(mat, ord="fro")
+        u, s, vh = scipy.linalg.svd(mat + rho * np.eye(mat.shape[0], mat.shape[1]), lapack_driver='gesvd')
         return [u, s, vh]
 
 
-    def __canonical_pinv(self, mat, rtol=1e-12):
-        """
-        Cross-plaform stabilized Moore-Penrose pseudo-inverse.
-        """
-        u, s, vh = self.__canonical_svd(mat)
+    def __canonical_pinv(self, mat, rtol=1e-12, regularization_coef=1e-16, regularize=False):
+        u, s, vh = self.__canonical_svd(mat, regularization_coef, regularize)
 
-        cutoff = rtol * np.max(s)
+        cutoff = np.max(s, initial = 0.) * rtol
         above_cutoff = s > cutoff
 
         s_inv = np.zeros_like(s)
         s_inv[above_cutoff] = 1.0 / s[above_cutoff]
 
-        V_s_inv = vh.T * s_inv
-        return V_s_inv.dot(u.T)
+        return (vh.T * s_inv).dot(u.conj().T)
+
+
+    def __canonical_eigh(self, mat, regularization_coef=1e-16, regularize=False):
+        u, s, vh = self.__canonical_svd(mat, regularization_coef, regularize)
+        return s, vh.conj().T
+
 
 
 # =============================================================================
