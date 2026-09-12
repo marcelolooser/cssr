@@ -209,6 +209,7 @@ if set_measurment_marices_gaussian:
     ar_gaussian21_gdo_adaptive = csMM_gaussian21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian22_gdo_adaptive = csMM_gaussian22.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian21_ajs = csMM_gaussian21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_ajs = csMM_gaussian22.ajs(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian21_afms = csMM_gaussian21.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian22_afms = csMM_gaussian22.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian21_hblz = csMM_gaussian21.hblz(l=l, p=p, rtol_estimate=False)
@@ -243,6 +244,7 @@ if set_measurment_marices_gaussian_overcomplete:
     ar_gaussian_overcomplete21_gdo_adaptive = csMM_gaussian_overcomplete21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian_overcomplete22_gdo_adaptive = csMM_gaussian_overcomplete22.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian_overcomplete21_ajs = csMM_gaussian_overcomplete21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_ajs = csMM_gaussian_overcomplete22.ajs(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian_overcomplete21_afms = csMM_gaussian_overcomplete21.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian_overcomplete22_afms = csMM_gaussian_overcomplete22.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian_overcomplete21_hblz = csMM_gaussian_overcomplete21.hblz(l=l, p=p, rtol_estimate=False)
@@ -269,6 +271,7 @@ if save_measurment_marices_gaussian and set_measurment_marices_gaussian and set_
              ar_gaussian21_gdo_adaptive = ar_gaussian21_gdo_adaptive,
              ar_gaussian22_gdo_adaptive = ar_gaussian22_gdo_adaptive,
              ar_gaussian21_ajs = ar_gaussian21_ajs,
+             ar_gaussian22_ajs = ar_gaussian22_ajs,
              ar_gaussian21_afms = ar_gaussian21_afms,
              ar_gaussian22_afms = ar_gaussian22_afms,
              ar_gaussian21_hblz = ar_gaussian21_hblz,
@@ -290,6 +293,7 @@ if save_measurment_marices_gaussian and set_measurment_marices_gaussian and set_
              ar_gaussian_overcomplete21_gdo_adaptive = ar_gaussian_overcomplete21_gdo_adaptive,
              ar_gaussian_overcomplete22_gdo_adaptive = ar_gaussian_overcomplete22_gdo_adaptive,
              ar_gaussian_overcomplete21_ajs = ar_gaussian_overcomplete21_ajs,
+             ar_gaussian_overcomplete22_ajs = ar_gaussian_overcomplete22_ajs,
              ar_gaussian_overcomplete21_afms = ar_gaussian_overcomplete21_afms,
              ar_gaussian_overcomplete22_afms = ar_gaussian_overcomplete22_afms,
              ar_gaussian_overcomplete21_hblz = ar_gaussian_overcomplete21_hblz,

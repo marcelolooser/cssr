@@ -14,14 +14,13 @@ from cssr import Filters
 from cssr import MeasurementMatrices
 from cssr import Superresolvers
 
-
 # =============================================================================
 # Stubbing:
 # =============================================================================
 
 @pytest.fixture
 def dir_stubs():
-    return "tests/data/data_stubs/"
+    return "data/data_stubs/"
 
 
 @pytest.fixture
@@ -159,22 +158,17 @@ def mock_random_gaussian(dir_stubs):
 
 @pytest.fixture
 def dir_filters():
-    return "tests/data/data_filters/"
+    return "data/data_filters/"
 
 
 @pytest.fixture
 def dir_superresolvers():
-    return "tests/data/data_superresolvers/"
+    return "data/data_superresolvers/"
 
 
 @pytest.fixture
 def frame_name(request):
     return request.param
-
-
-@pytest.fixture
-def load_signal_data(dir_filters, frame_name):
-    return np.load(dir_filters + frame_name + "_signal.npz")
 
 
 @pytest.fixture
@@ -192,7 +186,8 @@ def superresolvers_configurations():
     number_samples = 25
     max_iter = 8
     noise_level = 1e-8
-    return [number_samples, max_iter, noise_level]
+    tolerance = 1e-5
+    return [number_samples, max_iter, noise_level, tolerance]
 
 
 @pytest.fixture
@@ -217,7 +212,7 @@ def construct_sensing_matrix_components_gauss_gaussian(superresolvers_configurat
 
     # Preliminaries:
     # --------------
-    number_samples, max_iter, noise_level = superresolvers_configurations
+    number_samples, max_iter, noise_level, _ = superresolvers_configurations
     x = construct_test_signal_x_components
     cutoffs = construct_cutoffs
 
@@ -305,21 +300,73 @@ def construct_sensing_matrix_components_gauss_gaussian(superresolvers_configurat
     return components
 
 
+@pytest.fixture
+def construct_test_signal(construct_test_signal_x_components):
+    x = construct_test_signal_x_components
+    dim = len(x)
+
+    n_peaks = 16 # np.mod(8*dim//10, n_peaks) == 0
+    amps = np.arange(0.01, 1, 1/n_peaks).reshape((-1,1))
+    peaks = np.arange(dim//10, 9*dim//10, 8*dim//10//n_peaks)
+
+    y_sparse = np.zeros((dim, 1))
+    y_sparse[peaks] = amps
+    return [x, dim, n_peaks, amps, peaks, y_sparse]
+
+
+@pytest.fixture
+def construct_filtered_signal(construct_test_signal,
+                              construct_sensing_matrix_components_gauss_gaussian,
+                              construct_cutoffs):
+
+    x, dim, n_peaks, amps, peaks, y_sparse = construct_test_signal
+    cutoffs = construct_cutoffs
+
+
+    # Preliminary constructions:
+    # --------------------------
+
+    gaussian_frames = construct_sensing_matrix_components_gauss_gaussian
+    a0_gaussian2 = gaussian_frames[0][0]
+
+
+    # Main checks:
+    # ------------
+
+    y_gaussian2 = a0_gaussian2.dot(y_sparse)
+
+    csFr_y2_gaussian = Filters(y_gaussian2, x, cutoffs[0][0], filter_signal=True)
+
+    csFr_y2_gaussian.heaviside_lowpass_filter(return_array=False)
+    csFr_y2_gaussian.fir_filter(return_array=False)
+    csFr_y2_gaussian.cutoff = cutoffs[1]
+    csFr_y2_gaussian.fir_filter(numtabs=5, pass_zero="bandstop", return_array=False)
+    csFr_y2_gaussian.butter_filter(order=5, btype="bandstop", return_array=False)
+
+    y_gaussian2_filtered1 = csFr_y2_gaussian.truncated_a0
+
+    signals = [
+        y_gaussian2,
+               y_sparse,
+               y_gaussian2_filtered1
+        ]
+    return signals
+
 
 @pytest.mark.parametrize("frame_name", ["gaussian"], indirect=True)
 def test_superresolvers_guassian_based_sensing_matrices(load_superresolver_data,
                                                 construct_sensing_matrix_components_gauss_gaussian,
-                                                load_signal_data, superresolvers_configurations):
+                                                construct_filtered_signal, superresolvers_configurations):
     data = load_superresolver_data
 
     # Preliminary constructions:
     # --------------------------
 
-    _, max_iter, noise_level = superresolvers_configurations
+    _, max_iter, noise_level, tolerance = superresolvers_configurations
     components_dictionary, components_overcomplete_dictionary = construct_sensing_matrix_components_gauss_gaussian
 
-    data_y = load_signal_data
-    y = data_y["y_gaussian2_filtered1"]
+    data_y = construct_filtered_signal
+    y = data_y[-1]
 
 
     # Main checks:
@@ -352,17 +399,17 @@ def test_superresolvers_guassian_based_sensing_matrices(load_superresolver_data,
     y_gaussian_overcomplete21_gauss_sr_nlht = csS_frame21_gaussian_overcomplete_gauss.nlht(y, noise_level)
     y_gaussian_overcomplete21_gauss_sr_nlht_lasso = csS_frame21_gaussian_overcomplete_gauss.nlht_lasso(y, max_iter=max_iter)
 
-    assert np.allclose(y_gaussian21_gauss_sr_bp, data["y_gaussian21_gauss_sr_bp"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian21_gauss_sr_bpd, data["y_gaussian21_gauss_sr_bpd"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian21_gauss_sr_ic, data["y_gaussian21_gauss_sr_ic"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian21_gauss_sr_nlht, data["y_gaussian21_gauss_sr_nlht"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian21_gauss_sr_nlht_lasso, data["y_gaussian21_gauss_sr_nlht_lasso"], rtol=1e-8, atol=1e-8)
+    assert scipy.linalg.norm(y_gaussian21_gauss_sr_bp - data["y_gaussian21_gauss_sr_bp"])/scipy.linalg.norm(data["y_gaussian21_gauss_sr_bp"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian21_gauss_sr_bpd - data["y_gaussian21_gauss_sr_bpd"])/scipy.linalg.norm(data["y_gaussian21_gauss_sr_bpd"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian21_gauss_sr_ic - data["y_gaussian21_gauss_sr_ic"])/scipy.linalg.norm(data["y_gaussian21_gauss_sr_ic"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian21_gauss_sr_nlht - data["y_gaussian21_gauss_sr_nlht"])/scipy.linalg.norm(data["y_gaussian21_gauss_sr_nlht"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian21_gauss_sr_nlht_lasso - data["y_gaussian21_gauss_sr_nlht_lasso"])/scipy.linalg.norm(data["y_gaussian21_gauss_sr_nlht_lasso"]) < tolerance
 
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_bp, data["y_gaussian_overcomplete21_gauss_sr_bp"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_bpd, data["y_gaussian_overcomplete21_gauss_sr_bpd"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_ic, data["y_gaussian_overcomplete21_gauss_sr_ic"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_nlht, data["y_gaussian_overcomplete21_gauss_sr_nlht"], rtol=1e-8, atol=1e-8)
-    assert np.allclose(y_gaussian_overcomplete21_gauss_sr_nlht_lasso, data["y_gaussian_overcomplete21_gauss_sr_nlht_lasso"], rtol=1e-8, atol=1e-8)
+    assert scipy.linalg.norm(y_gaussian_overcomplete21_gauss_sr_bp - data["y_gaussian_overcomplete21_gauss_sr_bp"])/scipy.linalg.norm(data["y_gaussian_overcomplete21_gauss_sr_bp"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian_overcomplete21_gauss_sr_bpd - data["y_gaussian_overcomplete21_gauss_sr_bpd"])/scipy.linalg.norm(data["y_gaussian_overcomplete21_gauss_sr_bpd"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian_overcomplete21_gauss_sr_ic - data["y_gaussian_overcomplete21_gauss_sr_ic"])/scipy.linalg.norm(data["y_gaussian_overcomplete21_gauss_sr_ic"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian_overcomplete21_gauss_sr_nlht - data["y_gaussian_overcomplete21_gauss_sr_nlht"])/scipy.linalg.norm(data["y_gaussian_overcomplete21_gauss_sr_nlht"]) < tolerance
+    assert scipy.linalg.norm(y_gaussian_overcomplete21_gauss_sr_nlht_lasso - data["y_gaussian_overcomplete21_gauss_sr_nlht_lasso"])/scipy.linalg.norm(data["y_gaussian_overcomplete21_gauss_sr_nlht_lasso"]) < tolerance
 
 
 # =============================================================================

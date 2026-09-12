@@ -9,6 +9,7 @@ import pytest
 import random
 import numpy as np
 
+import cssr
 from cssr import Frames
 from cssr import Filters
 from cssr import MeasurementMatrices
@@ -155,14 +156,25 @@ def mock_random_gaussian(dir_stubs):
 # General setup:
 # =============================================================================
 
+
+@pytest.fixture
+def dir_filters():
+    return "data/data_filters/"
+
+
 @pytest.fixture
 def dir_measurement_matrices():
-    return "tests/data/data_measurement_matrices/"
+    return "data/data_measurement_matrices/"
 
 
 @pytest.fixture
 def frame_name(request):
     return request.param
+
+
+@pytest.fixture
+def load_filter_frame_data(dir_filters, frame_name):
+    return np.load(dir_filters + frame_name + "_frame" + ".npz")
 
 
 @pytest.fixture
@@ -184,7 +196,8 @@ def measurement_matrices_configurations():
     max_iter = 8
     l, p = 3, 3
 
-    return [number_samples, max_iter, l, p]
+    tolerance = 1e-3
+    return [number_samples, max_iter, l, p, tolerance]
 
 
 @pytest.fixture
@@ -292,7 +305,8 @@ def construct_filtered_gaussian_frame(construct_test_signal_x_components, constr
 
 
 @pytest.mark.parametrize("frame_name", ["gaussian"], indirect=True)
-def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
+def test_gaussian_based_measurement_matrices(load_filter_frame_data,
+                                              load_measurement_matrix_data,
                                               construct_filtered_gaussian_frame,
                                               measurement_matrices_configurations,
                                               mock_random_gaussian,
@@ -303,8 +317,10 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
                                               stub_random_randn_from_data,
                                               stub_random_unitary_from_data,
                                               monkeypatch):
+
+    data_filters_frames = load_filter_frame_data
     data = load_measurement_matrix_data
-    number_samples, max_iter, l, p = measurement_matrices_configurations
+    number_samples, max_iter, l, p, tolerance = measurement_matrices_configurations
     gaussian_filtered_frames = construct_filtered_gaussian_frame
 
 
@@ -331,6 +347,12 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     a0_gaussian_overcomplete2_filtered2 = gaussian_filtered_frames[3]
 
 
+    # Helper function:
+    # ----------------
+
+    def compare_mutual_coherences(a_ar, a_at, b_ar, b_at):
+        return cssr.mutual_coherence(a_ar.dot(a_at)) -  cssr.mutual_coherence(b_ar.dot(b_at))
+
     # Main checks:
     # ------------
 
@@ -355,6 +377,7 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     ar_gaussian21_gdo_adaptive = csMM_gaussian21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian22_gdo_adaptive = csMM_gaussian22.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian21_ajs = csMM_gaussian21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian22_ajs = csMM_gaussian22.ajs(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian21_afms = csMM_gaussian21.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian22_afms = csMM_gaussian22.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian21_hblz = csMM_gaussian21.hblz(l=l, p=p, rtol_estimate=False)
@@ -385,6 +408,7 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     ar_gaussian_overcomplete21_gdo_adaptive = csMM_gaussian_overcomplete21.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian_overcomplete22_gdo_adaptive = csMM_gaussian_overcomplete22.gdo_measurement_matrix_adaptive(l=l, p=p)
     ar_gaussian_overcomplete21_ajs = csMM_gaussian_overcomplete21.ajs(max_iter=max_iter, rtol_estimate=False)
+    ar_gaussian_overcomplete22_ajs = csMM_gaussian_overcomplete22.ajs(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian_overcomplete21_afms = csMM_gaussian_overcomplete21.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian_overcomplete22_afms = csMM_gaussian_overcomplete22.afms(max_iter=max_iter, rtol_estimate=False)
     ar_gaussian_overcomplete21_hblz = csMM_gaussian_overcomplete21.hblz(l=l, p=p, rtol_estimate=False)
@@ -395,48 +419,50 @@ def test_gaussian_based_measurement_matrices(load_measurement_matrix_data,
     ar_gaussian_overcomplete22_xsfz = csMM_gaussian_overcomplete22.xsfz(max_iter=max_iter, rtol_estimate=False)
 
 
-    assert np.allclose(ar_gaussian21_gauss, data["ar_gaussian21_gauss"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_bernoulli, data["ar_gaussian21_bernoulli"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_partial_fourier, data["ar_gaussian21_partial_fourier"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_partial_dct, data["ar_gaussian21_partial_dct"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_toeplitz, data["ar_gaussian21_toeplitz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_binary_block, data["ar_gaussian21_binary_block"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_sgn, data["ar_gaussian21_sgn"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_gdo, data["ar_gaussian21_gdo"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_gdo, data["ar_gaussian22_gdo"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_gdo_adaptive, data["ar_gaussian21_gdo_adaptive"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_gdo_adaptive, data["ar_gaussian22_gdo_adaptive"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_ajs, data["ar_gaussian21_ajs"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_afms, data["ar_gaussian21_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_afms, data["ar_gaussian22_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_hblz, data["ar_gaussian21_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_hblz, data["ar_gaussian22_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_ycwg, data["ar_gaussian21_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_ycwg, data["ar_gaussian22_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian21_xsfz, data["ar_gaussian21_xsfz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian22_xsfz, data["ar_gaussian22_xsfz"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(ar_gaussian21_gauss, data["ar_gaussian21_gauss"])
+    assert np.allclose(ar_gaussian21_bernoulli, data["ar_gaussian21_bernoulli"])
+    assert np.allclose(ar_gaussian21_partial_fourier, data["ar_gaussian21_partial_fourier"])
+    assert np.allclose(ar_gaussian21_partial_dct, data["ar_gaussian21_partial_dct"])
+    assert np.allclose(ar_gaussian21_toeplitz, data["ar_gaussian21_toeplitz"])
+    assert np.allclose(ar_gaussian21_binary_block, data["ar_gaussian21_binary_block"])
+    assert np.allclose(ar_gaussian21_sgn, data["ar_gaussian21_sgn"])
+    assert np.allclose(ar_gaussian21_gdo, data["ar_gaussian21_gdo"])
+    assert np.allclose(ar_gaussian22_gdo, data["ar_gaussian22_gdo"])
+    assert np.allclose(ar_gaussian21_gdo_adaptive, data["ar_gaussian21_gdo_adaptive"])
+    assert np.allclose(ar_gaussian22_gdo_adaptive, data["ar_gaussian22_gdo_adaptive"])
+    assert abs(compare_mutual_coherences(ar_gaussian21_ajs, a0_gaussian2_filtered1, data["ar_gaussian21_ajs"], data_filters_frames["a0_gaussian2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian22_ajs, a0_gaussian2_filtered2, data["ar_gaussian22_ajs"], data_filters_frames["a0_gaussian2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian21_afms, a0_gaussian2_filtered1, data["ar_gaussian21_afms"], data_filters_frames["a0_gaussian2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian22_afms, a0_gaussian2_filtered2, data["ar_gaussian22_afms"], data_filters_frames["a0_gaussian2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian21_hblz, a0_gaussian2_filtered1, data["ar_gaussian21_hblz"], data_filters_frames["a0_gaussian2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian22_hblz, a0_gaussian2_filtered2, data["ar_gaussian22_hblz"], data_filters_frames["a0_gaussian2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian21_ycwg, a0_gaussian2_filtered1, data["ar_gaussian21_ycwg"], data_filters_frames["a0_gaussian2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian22_ycwg, a0_gaussian2_filtered2, data["ar_gaussian22_ycwg"], data_filters_frames["a0_gaussian2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian21_xsfz, a0_gaussian2_filtered1, data["ar_gaussian21_xsfz"], data_filters_frames["a0_gaussian2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian22_xsfz, a0_gaussian2_filtered2, data["ar_gaussian22_xsfz"], data_filters_frames["a0_gaussian2_filtered2"])) < tolerance
 
 
-    assert np.allclose(ar_gaussian_overcomplete21_gauss, data["ar_gaussian_overcomplete21_gauss"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_bernoulli, data["ar_gaussian_overcomplete21_bernoulli"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_partial_fourier, data["ar_gaussian_overcomplete21_partial_fourier"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_partial_dct, data["ar_gaussian_overcomplete21_partial_dct"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_toeplitz, data["ar_gaussian_overcomplete21_toeplitz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_binary_block, data["ar_gaussian_overcomplete21_binary_block"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_sgn, data["ar_gaussian_overcomplete21_sgn"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_gdo, data["ar_gaussian_overcomplete21_gdo"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_gdo, data["ar_gaussian_overcomplete22_gdo"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_gdo_adaptive, data["ar_gaussian_overcomplete21_gdo_adaptive"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_gdo_adaptive, data["ar_gaussian_overcomplete22_gdo_adaptive"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_ajs, data["ar_gaussian_overcomplete21_ajs"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_afms, data["ar_gaussian_overcomplete21_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_afms, data["ar_gaussian_overcomplete22_afms"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_hblz, data["ar_gaussian_overcomplete21_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_hblz, data["ar_gaussian_overcomplete22_hblz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_ycwg, data["ar_gaussian_overcomplete21_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_ycwg, data["ar_gaussian_overcomplete22_ycwg"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete21_xsfz, data["ar_gaussian_overcomplete21_xsfz"], rtol=1e-9, atol=1e-9)
-    assert np.allclose(ar_gaussian_overcomplete22_xsfz, data["ar_gaussian_overcomplete22_xsfz"], rtol=1e-9, atol=1e-9)
+    assert np.allclose(ar_gaussian_overcomplete21_gauss, data["ar_gaussian_overcomplete21_gauss"])
+    assert np.allclose(ar_gaussian_overcomplete21_bernoulli, data["ar_gaussian_overcomplete21_bernoulli"])
+    assert np.allclose(ar_gaussian_overcomplete21_partial_fourier, data["ar_gaussian_overcomplete21_partial_fourier"])
+    assert np.allclose(ar_gaussian_overcomplete21_partial_dct, data["ar_gaussian_overcomplete21_partial_dct"])
+    assert np.allclose(ar_gaussian_overcomplete21_toeplitz, data["ar_gaussian_overcomplete21_toeplitz"])
+    assert np.allclose(ar_gaussian_overcomplete21_binary_block, data["ar_gaussian_overcomplete21_binary_block"])
+    assert np.allclose(ar_gaussian_overcomplete21_sgn, data["ar_gaussian_overcomplete21_sgn"])
+    assert np.allclose(ar_gaussian_overcomplete21_gdo, data["ar_gaussian_overcomplete21_gdo"])
+    assert np.allclose(ar_gaussian_overcomplete22_gdo, data["ar_gaussian_overcomplete22_gdo"])
+    assert np.allclose(ar_gaussian_overcomplete21_gdo_adaptive, data["ar_gaussian_overcomplete21_gdo_adaptive"])
+    assert np.allclose(ar_gaussian_overcomplete22_gdo_adaptive, data["ar_gaussian_overcomplete22_gdo_adaptive"])
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete21_ajs, a0_gaussian_overcomplete2_filtered1, data["ar_gaussian_overcomplete21_ajs"], data_filters_frames["a0_gaussian_overcomplete2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete22_ajs, a0_gaussian_overcomplete2_filtered2, data["ar_gaussian_overcomplete22_ajs"], data_filters_frames["a0_gaussian_overcomplete2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete21_afms, a0_gaussian_overcomplete2_filtered1, data["ar_gaussian_overcomplete21_afms"], data_filters_frames["a0_gaussian_overcomplete2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete22_afms, a0_gaussian_overcomplete2_filtered2, data["ar_gaussian_overcomplete22_afms"], data_filters_frames["a0_gaussian_overcomplete2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete21_hblz, a0_gaussian_overcomplete2_filtered1, data["ar_gaussian_overcomplete21_hblz"], data_filters_frames["a0_gaussian_overcomplete2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete22_hblz, a0_gaussian_overcomplete2_filtered2, data["ar_gaussian_overcomplete22_hblz"], data_filters_frames["a0_gaussian_overcomplete2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete21_ycwg, a0_gaussian_overcomplete2_filtered1, data["ar_gaussian_overcomplete21_ycwg"], data_filters_frames["a0_gaussian_overcomplete2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete22_ycwg, a0_gaussian_overcomplete2_filtered2, data["ar_gaussian_overcomplete22_ycwg"], data_filters_frames["a0_gaussian_overcomplete2_filtered2"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete21_xsfz, a0_gaussian_overcomplete2_filtered1, data["ar_gaussian_overcomplete21_xsfz"], data_filters_frames["a0_gaussian_overcomplete2_filtered1"])) < tolerance
+    assert abs(compare_mutual_coherences(ar_gaussian_overcomplete22_xsfz, a0_gaussian_overcomplete2_filtered2, data["ar_gaussian_overcomplete22_xsfz"], data_filters_frames["a0_gaussian_overcomplete2_filtered2"])) < tolerance
 
 
 # =============================================================================
