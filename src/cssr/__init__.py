@@ -6,8 +6,9 @@ Created on Fri Apr 23 15:38:29 2021
 __version__ = "0.0.1a1"
 
 from .filters import Filters
-from .frames import Frames, FrameCheck
+from .frames import Frames
 from .measurement_matrices import MeasurementMatrices
 from .superresolvers import Superresolvers
+from .utils.coherence_measures import *
 
-__all__ = [ "Filters", "Frames", "FrameCheck", "MeasurementMatrices", "Superresolvers"]
+__all__ = [ "Filters", "Frames", "MeasurementMatrices", "Superresolvers"]
