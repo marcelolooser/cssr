@@ -1,3 +1,8 @@
+<br />
+<div align="center">
+  <img src="images/cssr_logo.svg" alt="Logo" width="100%">
+</div>
+
 # The Python package *cssr*
 
 *cssr* is a Python package that functions as a Compressed Sensing-based super-resolution framework of 
