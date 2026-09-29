@@ -27,19 +27,34 @@ class Frames:
 
     Parameters
     ----------
-    x_signal : array like
-        X-component of the signal.
+    x_signal : tuple or array like
+        Coordinates of the signal. If an array is provided the signal is assumed
+        to be 1-dimensional, where x_signal represents the x-coordinates. If a
+        tuple is provided, the signal is assumed to be 2-dimensional, and the
+        first and second entry in the tuple are treated as the x-coordinates and
+        the y-coordinates of the signal, reprectively.
     """
 
     def __init__(self, x_signal):
 
-        if not isinstance(x_signal, np.ndarray):
-            raise ValueError("The first argument must be an array.")
-        elif not (x_signal.ndim == 1 or (x_signal.ndim == 2 and x_signal.shape[1] == 1)):
-            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
-
-        self.signal_length = x_signal.shape[0]
-        self.x = x_signal.reshape((-1,))
+        if isinstance(x_signal, tuple):
+            if not (isinstance(x_signal[0], np.ndarray) and isinstance(x_signal[1], np.ndarray)):
+                raise ValueError("The first argument must be a tuple of arrays.")
+            elif not (x_signal[0].ndim == 1 or (x_signal[0].ndim == 2 and x_signal[0].shape[1] == 1)):
+                raise ValueError("The first array in the first argument must of shape (m,) or (m,1).")
+            elif not (x_signal[1].ndim == 1 or (x_signal[1].ndim == 2 and x_signal[1].shape[1] == 1)):
+                raise ValueError("The second array in the first argument must be an array of shape (m,) or (m,1).")
+            self.x = x_signal
+            self.signal_length = (x_signal[0].shape[0], x_signal[1].shape[0])
+            self.signal2d = True
+        else:
+            if not isinstance(x_signal, np.ndarray):
+                raise ValueError("The first argument must be an array or a tuple of arrays.")
+            elif not (x_signal.ndim == 1 or (x_signal.ndim == 2 and x_signal.shape[1] == 1)):
+                raise ValueError("The first argument must be an array of shape (m,) or (m,1).")
+            self.x = x_signal.reshape((-1,))
+            self.signal_length = x_signal.shape[0]
+            self.signal2d = False
 
 
     @staticmethod
@@ -58,13 +73,17 @@ class Frames:
 
     def heaviside(self, box_width): # if box_width 1, dirac frame
         """
-        Heaviside frame, vectors (atoms) consist of binary entries (1's and 0's).
-        The box_width parameter determines the width of the peaks.
+        Heaviside frame, atoms consist of compactly suppoted, non-zero
+        normed blocks. The box_width parameter determines the width of the peaks.
 
         Parameters
         ----------
-        box_width: int
-            Width of the peaks.
+        box_width: int or tuple
+            Width of the peaks. A tuple of two integers can be provided if the
+            signal is two-dimensional, where the first and second entry repre-
+            sent the x-direction and the y-direction, respectively. If the
+            signal is two-dimensional and the box_width is an integer, the
+            box_width is set to a the same value in both directions.
 
         Returns
         -------
@@ -72,19 +91,57 @@ class Frames:
             Sparsifying basis.
         """
 
-        if not isinstance(box_width, int):
+        if not (isinstance(box_width, int) or self.signal2d):
             raise ValueError("box_width must be an integer.")
-        elif not (1 <= box_width < self.signal_length):
-            raise ValueError(f"box_width must lie in the range [1, {self.signal_length-1}].")
-
-        a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
-        for j in range(1, self.signal_length+1):
-            if j <= box_width:
-                index = range(0, j)
-                value = 1/np.sqrt(j)
+        if isinstance(box_width, int):
+            if self.signal2d:
+                if not (1 <= box_width < self.signal_length[0] or 1 <= box_width < self.signal_length[1]):
+                    raise ValueError(f"box_width must lie in the range [1, {min(self.signal_length)-1}].")
             else:
-                index = range(j-box_width, j)
-            a_frame[index, j-1] = value
+                if not (1 <= box_width < self.signal_length):
+                    raise ValueError(f"box_width must lie in the range [1, {self.signal_length-1}].")
+
+        if isinstance(box_width, tuple):
+            if not len(box_width) == 2:
+                raise ValueError("box_width must be a tuple of two integers (or one integer).")
+
+            box_width_x, box_width_y = box_width
+            if not isinstance(box_width_x, int):
+                raise ValueError("box_width[0] must be an integer.")
+            elif not (1 <= box_width_x < self.signal_length[0]):
+                raise ValueError(f"box_width[0] must lie in the range [1, {self.signal_length[0]-1}].")
+            if not isinstance(box_width_y, int):
+                raise ValueError("box_width[1] must be an integer.")
+            elif not (1 <= box_width_y < self.signal_length[1]):
+                raise ValueError(f"box_width[1] must lie in the range [1, {self.signal_length[1]-1}].")
+
+        if not self.signal2d:
+            a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
+            for j in range(1, self.signal_length+1):
+                if j <= box_width:
+                    index = range(0, j)
+                else:
+                    index = range(j-box_width, j)
+                a_frame[index, j-1] = 1/np.sqrt(box_width)
+
+        else:
+            if isinstance(box_width, int):
+                box_width_x, box_width_y = box_width, box_width
+
+            a_frame = np.zeros((self.signal_length[0], self.signal_length[1], self.signal_length[0], self.signal_length[1]), dtype=complex)
+            for x_i, _ in enumerate(self.x[1]):
+                for y_i, _ in enumerate(self.x[0]):
+                    if x_i+1 <= box_width_x:
+                        index_x = range(0, x_i+1)
+                    else:
+                        index_x = range(x_i-box_width_x+1, x_i+1)
+                    if y_i+1 <= box_width_y:
+                        index_y = range(0, y_i+1)
+                    else:
+                        index_y = range(y_i-box_width_y+1, y_i+1)
+
+                    a_frame[:, :, y_i, x_i][np.ix_(index_y, index_x)] = 1/np.sqrt(box_width_x*box_width_y)
+            a_frame = np.roll(a_frame, shift=(-box_width_x//2+1, -box_width_y//2+1), axis=(2, 3))
         return a_frame
 
 
@@ -110,6 +167,10 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
+        if self.signal2d:
+            raise NotImplementedError("Overcomplete dictionaries are not yet "\
+                                      "implemented for two-dimensional signals.")
 
         if box_width_interval is not None:
             if not isinstance(box_width_interval, list):
@@ -174,12 +235,16 @@ class Frames:
 
     def gaussian(self, sigma):
         """
-        Gaussian frame, the vectors (atoms) are normal PDFs.
+        Gaussian frame, the atoms are normal PDFs.
 
         Parameters
         ----------
-        sigma : float
-            Standard deviation.
+        sigma : float or tuple
+            Standard deviation. A tuple of two floats can be provided if the
+            signal is two-dimensional, where the first and second entry repre-
+            sent the x-direction and the y-direction, respectively. If the
+            signal is two-dimensional and sigma is a float, the standard
+            deviation is set to a the same value in both directions.
 
         Returns
         -------
@@ -187,16 +252,54 @@ class Frames:
             Sparsifying basis.
         """
 
-        if not isinstance(sigma, (int, float)):
+        if not (isinstance(sigma, (int, float)) or self.signal2d):
             raise ValueError("sigma must be a float or an integer.")
-        elif not (0 < sigma < abs(self.x[-1] - self.x[0])):
-            raise ValueError("sigma must be between 0 and the absolute "\
-                             f"length of the range of x {abs(self.x[-1] - self.x[0])}.")
+        if isinstance(sigma, (int, float)):
+            if self.signal2d:
+                if not (0 < sigma < abs(self.x[0][-1] - self.x[0][0]) or 0 < sigma < abs(self.x[0][-1] - self.x[0][0])):
+                    raise ValueError("sigma must be between 0 and the absolute "\
+                                     f"length of the range of {min([abs(self.x[0][-1] - self.x[0][0]), abs(self.x[1][-1] - self.x[1][0])])}.")
+            else:
+                if not (0 < sigma < abs(self.x[-1] - self.x[0])):
+                    raise ValueError("sigma must be between 0 and the absolute "\
+                                     f"length of the range of x {abs(self.x[-1] - self.x[0])}.")
 
-        a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
-        for i, mu in enumerate(self.x):
-            gdist = scipy.stats.norm.pdf(self.x, mu, sigma).reshape((self.signal_length,))
-            a_frame[:,i] = gdist/np.linalg.norm(gdist, 2)
+        if isinstance(sigma, tuple):
+            if not len(sigma) == 2:
+                raise ValueError("sigma must be a tuple of two floats (or one float).")
+
+            if not isinstance(sigma[0], (int, float)):
+                raise ValueError("sigma[0] must be a float or an integer.")
+            elif not (0 < sigma[0] < abs(self.x[0][-1] - self.x[0][0])):
+                raise ValueError("sigma[0] must be between 0 and the absolute "\
+                                 f"length of the range of x[0] {abs(self.x[0][-1] - self.x[0][0])}.")
+            if not isinstance(sigma[1], (int, float)):
+                raise ValueError("sigma[1] must be a float or an integer.")
+            elif not (0 < sigma[1] < abs(self.x[1][-1] - self.x[1][0])):
+                raise ValueError("sigma[1] must be between 0 and the absolute "\
+                                 f"length of the range of x[1] {abs(self.x[1][-1] - self.x[1][0])}.")
+
+        if not self.signal2d:
+            a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
+            for i, mu in enumerate(self.x):
+                gdist = scipy.stats.norm.pdf(self.x, mu, sigma).reshape((self.signal_length,))
+                a_frame[:,i] = gdist/np.linalg.norm(gdist, 2)
+
+        else:
+            if isinstance(sigma, (float, int)):
+                sigmas = (sigma, sigma)
+            else:
+                sigmas = sigma
+
+            x, y = np.meshgrid(self.x[1], self.x[0])
+            xy = np.dstack((x.flatten(), y.flatten()))
+            a_frame = np.zeros((self.signal_length[0], self.signal_length[1], self.signal_length[0], self.signal_length[1]), dtype=complex)
+
+            for x_i, x_mu in enumerate(self.x[1]):
+                for y_i, y_mu in enumerate(self.x[0]):
+                    mus = (x_mu, y_mu)
+                    gdist = scipy.stats.multivariate_normal.pdf(xy, mus, sigmas).reshape(self.signal_length)
+                    a_frame[:, :, y_i, x_i] = gdist/np.linalg.norm(gdist, 2)
         return a_frame
 
 
@@ -224,6 +327,10 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
+        if self.signal2d:
+            raise NotImplementedError("Overcomplete dictionaries are not yet "\
+                                      "implemented for two-dimensional signals.")
 
         if sigma_interval is not None:
             if not isinstance(sigma_interval, list):
@@ -262,8 +369,12 @@ class Frames:
 
         Parameters
         ----------
-        gamma:
-            Half width at half maximum (HWHM).
+        gamma: float or tuple
+            Half width at half maximum (HWHM). A tuple of two floats can be
+            provided if the signal is two-dimensional, where the first and
+            second entry represent the x-direction and the y-direction,
+            respectively. If the signal is two-dimensional and gamma is a float,
+            the HWHM is set to a the same value in both directions.
 
         Returns
         -------
@@ -271,16 +382,52 @@ class Frames:
             Sparsifying basis.
         """
 
-        if not isinstance(gamma, (int, float)):
+        if not (isinstance(gamma, (int, float)) or self.signal2d):
             raise ValueError("gamma must be a float or an integer.")
-        elif not (0 < gamma < abs(self.x[-1] - self.x[0])):
-            raise ValueError("gamma must be between 0 and the absolute "\
-                             f"length of the range of x {abs(self.x[-1] - self.x[0])}.")
+        if isinstance(gamma, (int, float)):
+            if self.signal2d:
+                if not (0 < gamma < abs(self.x[0][-1] - self.x[0][0]) or 0 < gamma < abs(self.x[0][-1] - self.x[0][0])):
+                    raise ValueError("gamma must be between 0 and the absolute "\
+                                     f"length of the range of {min([abs(self.x[0][-1] - self.x[0][0]), abs(self.x[1][-1] - self.x[1][0])])}.")
+            else:
+                if not (0 < gamma < abs(self.x[-1] - self.x[0])):
+                    raise ValueError("gamma must be between 0 and the absolute "\
+                                     f"length of the range of x {abs(self.x[-1] - self.x[0])}.")
 
-        a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
-        for i, mu in enumerate(self.x):
-            cdist = self.__cauchy_pdf(mu, gamma).reshape((self.signal_length,))
-            a_frame[:,i] = cdist/np.linalg.norm(cdist, 2)
+        if isinstance(gamma, tuple):
+            if not len(gamma) == 2:
+                raise ValueError("gamma must be a tuple of two floats (or one float).")
+
+            if not isinstance(gamma[0], (int, float)):
+                raise ValueError("gamma[0] must be a float or an integer.")
+            elif not (0 < gamma[0] < abs(self.x[0][-1] - self.x[0][0])):
+                raise ValueError("gamma_x must be between 0 and the absolute "\
+                                 f"length of the range of x[0] {abs(self.x[0][-1] - self.x[0][0])}.")
+            if not isinstance(gamma[1], (int, float)):
+                raise ValueError("gamma[1] must be a float or an integer.")
+            elif not (0 < gamma[1] < abs(self.x[1][-1] - self.x[1][0])):
+                raise ValueError("gamma[1] must be between 0 and the absolute "\
+                                 f"length of the range of x[1] {abs(self.x[1][-1] - self.x[1][0])}.")
+
+        if not self.signal2d:
+            a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
+            for i, mu in enumerate(self.x):
+                cdist = self.__cauchy_pdf(mu, gamma).reshape((self.signal_length,))
+                a_frame[:,i] = cdist/np.linalg.norm(cdist, 2)
+
+        else:
+            if isinstance(gamma, (float, int)):
+                gammas = (gamma, gamma)
+            else:
+                gammas = gamma
+
+            a_frame = np.zeros((self.signal_length[0], self.signal_length[1], self.signal_length[0], self.signal_length[1]), dtype=complex)
+            for x_i, x_mu in enumerate(self.x[1]):
+                for y_i, y_mu in enumerate(self.x[0]):
+                    mus = (x_mu, y_mu)
+                    cdist = self.__cauchy_pdf(mus, gammas)
+                    a_frame[:, :, y_i, x_i] = cdist/np.linalg.norm(cdist, 2)
+
         return a_frame
 
 
@@ -308,6 +455,10 @@ class Frames:
         a_frame : ndarray
             Sparsifying basis.
         """
+
+        if self.signal2d:
+            raise NotImplementedError("Overcomplete dictionaries are not yet "\
+                                      "implemented for two-dimensional signals.")
 
         if gamma_interval is not None:
             if not isinstance(gamma_interval, list):
@@ -346,16 +497,27 @@ class Frames:
 
         Parameters
         ----------
-        mu:
-            Expectation value.
-        gamma:
-            Half width at half maximum (HWHM).
+        mu: tuple or float
+            Expectation value. If a tuple is provided, a 3-dimensional
+            Cauchy distribution is constructed centered at (mu_x, mu_y).
+        gamma: tuple or float
+            Half width at half maximum (HWHM). If a tuple is provided, a 3-dimensional
+            Cauchy distribution is constructed centered at (mu_x, mu_y).
 
         Returns
         -------
         PDF value at x.
         """
-        return (1/np.pi)*(gamma/((self.x - mu)**2 + gamma**2))
+        if isinstance(mu, tuple) != isinstance(gamma, tuple):
+            raise TypeError("The two-dimensional distributions requieres two tuples to be passed not just one.")
+        if isinstance(mu, tuple):
+            x, y = np.meshgrid(self.x[1], self.x[0])
+
+            c = 2**(2 / 3) - 1
+            amp = scipy.special.gamma(3 / 2) * c / (np.pi**(3 / 2)) * (gamma[0] * gamma[1])
+            return amp * (1 + c * ((x - mu[0])**2 / gamma[0]**2) + ((y - mu[1])**2 / gamma[1]**2))**(-3 / 2)
+        else:
+            return (1/np.pi)*(gamma/((self.x - mu)**2 + gamma**2))
 
 
     def fourier(self):
@@ -368,8 +530,14 @@ class Frames:
             Sparsifying basis.
         """
 
-        a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
-        a_frame = scipy.fft.fftshift(scipy.linalg.dft(self.signal_length))
+        if not self.signal2d:
+            a_frame = np.zeros((self.signal_length, self.signal_length), dtype=complex)
+            a_frame = scipy.fft.fftshift(scipy.linalg.dft(self.signal_length))
+        else:
+            fy = scipy.fft.fftshift(scipy.linalg.dft(self.signal_length[0]))
+            fx = scipy.fft.fftshift(scipy.linalg.dft(self.signal_length[1]))
+            a_frame = np.kron(fy, fx).reshape(self.signal_length[0], self.signal_length[1], self.signal_length[0], self.signal_length[1])
+
         return a_frame
 
 

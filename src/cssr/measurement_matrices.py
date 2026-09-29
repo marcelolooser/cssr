@@ -30,25 +30,47 @@ class MeasurementMatrices:
     a_tr : array like
         Filtered sparsifying matrix. (Alternatively, the sparsifying matrix
         alone can be used.)
-    number_samples : int
-        Number of random samples.
+    number_samples : int or tuple
+        Number of random samples. If a tuple of integers is provided, the first
+        and second entry represent the number of samples in the x-direction and
+        the y-direction, respectively.
     """
 
     def __init__(self, a_tr, number_samples):
 
         if not isinstance(a_tr, np.ndarray):
-            raise ValueError("The second argument must be an array.")
-        elif a_tr.ndim == 1 or (a_tr.ndim == 2 and a_tr.shape[1] == 1):
-            raise ValueError("The second argument must be an 2D array of shape "\
-                             "(n, m) with m > 1.")
+            raise ValueError("The first argument must be an array.")
+        elif a_tr.ndim == 1 or (a_tr.ndim == 2 and a_tr.shape[1] == 1) or a_tr.ndim == 3 or a_tr.ndim > 4:
+            raise ValueError("The first argument must be a 2D array of shape "\
+                             "(m, n) with m > 1 or a tensor of shape (m, n, mt, nt)")
+        else:
+            self.signal2d = True if a_tr.ndim > 2 else False
 
-        if not 0 < number_samples <= a_tr.shape[0]:
-            raise ValueError("The number samples must be between 0 and "\
-                             f"{a_tr.shape[0]}, but {number_samples} was provided.")
+        if self.signal2d:
+            if isinstance(number_samples, int):
+                if not 0 < number_samples <= min(a_tr.shape):
+                    raise ValueError("The number samples must be between 0 and "\
+                                     f"{min(a_tr.shape)}, but {number_samples} was provided.")
+            elif isinstance(number_samples, tuple):
+                if not (isinstance(number_samples[0], int) or isinstance(number_samples[1], int)):
+                    raise ValueError("The number samples must be integers.")
+                elif not (0 < number_samples[0] <= a_tr.shape[0] and 0 < number_samples[1] <= a_tr.shape[1]):
+                        raise ValueError("The number samples must be between 0 and "\
+                                         f"{(a_tr.shape[0], a_tr.shape[1])}, but {number_samples} was provided.")
+            else:
+                raise ValueError("number_samples must be an integer.")
 
         self.a_tr = a_tr
-        self.number_samples = number_samples
-        self.m, self.n = self.a_tr.shape
+        self.signal2d = True if self.a_tr.ndim > 2 else False
+        if not self.signal2d:
+            self.m, self.n = self.a_tr.shape # m := signal shape, n := number of atoms
+            self.number_samples = number_samples
+        else:
+            self.m, self.n, self.mt, self.nt = self.a_tr.shape # (m, n) := signal shape,  mt*nt := number of atoms
+            if isinstance(number_samples, tuple):
+                self.number_samples = number_samples
+            else:
+                self.number_samples = (number_samples, number_samples)
 
 
     @staticmethod
@@ -75,7 +97,13 @@ class MeasurementMatrices:
     @property
     def welch_bound(self):
         """ Computes the Welch bound."""
-        return np.sqrt((self.n - self.number_samples)/(self.number_samples*(self.n-1)))
+        if not self.signal2d:
+            welch_bound = np.sqrt((self.n - self.number_samples)/(self.number_samples*(self.n-1)))
+        else:
+            welch_bound1 =  np.sqrt((self.m - self.number_samples[0])/(self.number_samples[0]*(self.m-1)))
+            welch_bound2 =  np.sqrt((self.n - self.number_samples[1])/(self.number_samples[1]*(self.n-1)))
+            welch_bound = (welch_bound1, welch_bound2)
+        return welch_bound
 
 
     def random_gauss_matrix(self):
@@ -88,7 +116,10 @@ class MeasurementMatrices:
             Measurement matrix.
         """
 
-        ar_matrix = np.sqrt(1/self.number_samples) * np.random.randn(self.number_samples, self.m)
+        if not self.signal2d:
+            ar_matrix = np.sqrt(1/self.number_samples) * np.random.randn(self.number_samples, self.m)
+        else:
+            ar_matrix = np.sqrt(1/(self.number_samples[0]*self.number_samples[1])) * np.random.randn(self.number_samples[0], self.number_samples[1], self.m, self.n)
         return ar_matrix
 
 
@@ -112,7 +143,10 @@ class MeasurementMatrices:
         if not 0 <= probability <= 1:
             raise ValueError("Probability must be between 0 and 1.")
 
-        ar_matrix = np.random.binomial(n=1, p=probability, size=(self.number_samples, self.m))
+        if not self.signal2d:
+            ar_matrix = np.random.binomial(n=1, p=probability, size=(self.number_samples, self.m))
+        else:
+            ar_matrix = np.random.binomial(n=1, p=probability, size=(self.number_samples[0], self.number_samples[1], self.m, self.n))
         return ar_matrix
 
 
@@ -126,14 +160,23 @@ class MeasurementMatrices:
             Measurement matrix.
         """
 
-        indices1 = random.sample(range(self.m), self.number_samples)
-        if self.n >= self.m:
-            indices2 = random.sample(range(self.n), self.m)
-            full_dft = scipy.linalg.dft(self.n)
+        if not self.signal2d:
+            indices1 = random.sample(range(self.m), self.number_samples)
+            if self.n >= self.m:
+                indices2 = random.sample(range(self.n), self.m)
+                full_dft = scipy.linalg.dft(self.n)
+            else:
+                indices2 = random.sample(range(self.m), self.m)
+                full_dft = scipy.linalg.dft(self.m)
+            ar_matrix = full_dft[:,indices2][indices1,:]
         else:
-            indices2 = random.sample(range(self.m), self.m)
-            full_dft = scipy.linalg.dft(self.m)
-        ar_matrix = full_dft[:,indices2][indices1,:]
+            ar_matrix = np.zeros((self.number_samples[0], self.number_samples[1], self.m, self.n))
+            for i in range(self.m):
+                for j in range(self.n):
+                    indices1 = random.sample(range(self.n), self.number_samples[1])
+                    indices2 = random.sample(range(self.m), self.number_samples[0])
+                    full_dft = scipy.linalg.dft(max((self.m, self.n)))
+                    ar_matrix[:, :, i, j] = full_dft[:,indices1][indices2,:]
         return ar_matrix
 
 
@@ -147,14 +190,23 @@ class MeasurementMatrices:
             Measurement matrix.
         """
 
-        indices1 = random.sample(range(self.m), self.number_samples)
-        if self.n >= self.m:
-            indices2 = random.sample(range(self.n), self.m)
-            dct = scipy.fft.dct(np.identity(self.n), axis=0)
+        if not self.signal2d:
+            indices1 = random.sample(range(self.m), self.number_samples)
+            if self.n >= self.m:
+                indices2 = random.sample(range(self.n), self.m)
+                dct = scipy.fft.dct(np.identity(self.n), axis=0)
+            else:
+                indices2 = random.sample(range(self.m), self.m)
+                dct = scipy.fft.dct(np.identity(self.m), axis=0)
+            ar_matrix = dct[:,indices2][indices1,:]
         else:
-            indices2 = random.sample(range(self.m), self.m)
-            dct = scipy.fft.dct(np.identity(self.m), axis=0)
-        ar_matrix = dct[:,indices2][indices1,:]
+            ar_matrix = np.zeros((self.number_samples[0], self.number_samples[1], self.m, self.n))
+            for i in range(self.m):
+                for j in range(self.n):
+                    indices1 = random.sample(range(self.n), self.number_samples[1])
+                    indices2 = random.sample(range(self.m), self.number_samples[0])
+                    dct = scipy.fft.dct(np.identity(max((self.m, self.n))), axis=0)
+                    ar_matrix[:, :, i, j] = dct[:,indices1][indices2,:]
         return ar_matrix
 
 
@@ -168,10 +220,22 @@ class MeasurementMatrices:
         ar_matrix : ndarray
             Measurement matrix.
         """
-
-        b = np.random.choice((-1,1), size=self.m)
-        indices1 = random.sample(range(self.m), self.number_samples)
-        ar_matrix = scipy.linalg.toeplitz(b)[indices1,:]
+        if not self.signal2d:
+            b = np.random.choice((-1,1), size=self.m)
+            indices1 = random.sample(range(self.m), self.number_samples)
+            ar_matrix = scipy.linalg.toeplitz(b)[indices1,:]
+        else:
+            ar_matrix = np.zeros((self.number_samples[0], self.number_samples[1], self.m, self.n))
+            for i in range(self.m):
+                for j in range(self.n):
+                    if self.number_samples[0] >= self.number_samples[1]:
+                        b = np.random.choice((-1,1), size=self.number_samples[0])
+                        indices1 = random.sample(range(self.number_samples[0]), self.number_samples[1])
+                        ar_matrix[:, :, i, j] = scipy.linalg.toeplitz(b)[:,indices1]
+                    else:
+                        b = np.random.choice((-1,1), size=self.number_samples[1])
+                        indices1 = random.sample(range(self.number_samples[1]), self.number_samples[0])
+                        ar_matrix[:, :, i, j] = scipy.linalg.toeplitz(b)[indices1,:]
         return ar_matrix
 
 
@@ -187,9 +251,19 @@ class MeasurementMatrices:
             Measurement matrix.
         """
 
-        block_length = self.m//self.number_samples
-        vec_temp = list(np.ones(block_length)) + list(np.zeros(self.m-block_length))
-        ar_matrix = scipy.linalg.circulant(vec_temp)[block_length-1::block_length,:][:self.number_samples,:]
+        if not self.signal2d:
+            block_length = self.m//self.number_samples
+            vec_temp = list(np.ones(block_length)) + list(np.zeros(self.m-block_length))
+            ar_matrix = scipy.linalg.circulant(vec_temp)[block_length-1::block_length,:][:self.number_samples,:]
+        else:
+            ar_matrix = np.kron(np.eye(min((self.m, self.n))), np.ones(((self.m*self.number_samples[0])//min(self.m, self.n), (self.n*self.number_samples[1])//min(self.m, self.n))))
+            zero_padding_m = np.mod((self.m*self.number_samples[0]), min(self.m, self.n))
+            zero_padding_n = np.mod((self.n*self.number_samples[1]), min(self.m, self.n))
+            if zero_padding_m:
+                ar_matrix = np.pad(ar_matrix, [(0,zero_padding_m), (0,0)], mode='constant')
+            elif zero_padding_n:
+                ar_matrix = np.pad(ar_matrix, [(0,0), (0,zero_padding_n)], mode='constant')
+            ar_matrix = ar_matrix.reshape(self.number_samples[0], self.number_samples[1], self.m, self.n)
         return ar_matrix
 
 
@@ -203,11 +277,28 @@ class MeasurementMatrices:
             Measurement matrix.
         """
 
-        indices1 = random.sample(range(self.m), self.number_samples)
-        item = np.random.choice((-1,1), size=self.m)
-        idn = np.zeros((self.m,self.m))
-        idn.ravel()[::self.m+1] = item
-        ar_matrix = idn[indices1,:]
+        if not self.signal2d:
+            indices1 = random.sample(range(self.m), self.number_samples)
+            item = np.random.choice((-1,1), size=self.m)
+            idn = np.zeros((self.m,self.m))
+            idn.ravel()[::self.m+1] = item
+            ar_matrix = idn[indices1,:]
+        else:
+            ar_matrix = np.zeros((self.number_samples[0], self.number_samples[1], self.m, self.n))
+            for i in range(self.m):
+                for j in range(self.n):
+                    if self.number_samples[0] >= self.number_samples[1]:
+                        indices1 = random.sample(range(self.number_samples[0]), self.number_samples[1])
+                        item = np.random.choice((-1,1), size=self.number_samples[0])
+                        idn = np.zeros((self.number_samples[0],self.number_samples[0]))
+                        idn.ravel()[::self.number_samples[0]+1] = item
+                        ar_matrix[:, :, i, j] = idn[:,indices1]
+                    else:
+                        indices1 = random.sample(range(self.number_samples[1]), self.number_samples[0])
+                        item = np.random.choice((-1,1), size=self.number_samples[1])
+                        idn = np.zeros((self.number_samples[1],self.number_samples[1]))
+                        idn.ravel()[::self.number_samples[1]+1] = item
+                        ar_matrix[:, :, i, j] = idn[indices1,:]
         return ar_matrix
 
 
@@ -242,6 +333,10 @@ class MeasurementMatrices:
            matrix in compressive sensing**," Signal Processing, vol. 92, no. 4,
            pp. 999–1009, Apr. 2012, doi: 10.1016/j.sigpro.2011.10.012.
         """
+
+        if self.signal2d:
+            raise NotImplementedError("Optimized measurement matrices are not yet "\
+                                      "implemented for two-dimensional signals.")
 
         if mu is not None:
             if not isinstance(mu, (float, int)):
@@ -313,6 +408,10 @@ class MeasurementMatrices:
            matrix in compressive sensing**," Signal Processing, vol. 92, no. 4,
            pp. 999–1009, Apr. 2012, doi: 10.1016/j.sigpro.2011.10.012.
         """
+
+        if self.signal2d:
+            raise NotImplementedError("Optimized measurement matrices are not yet "\
+                                      "implemented for two-dimensional signals.")
 
         if mu is not None:
             if not isinstance(mu, (float, int)):
@@ -412,6 +511,10 @@ class MeasurementMatrices:
            388-392, 2010, doi: 10.1109/CIP.2010.5604134.
         """
 
+        if self.signal2d:
+            raise NotImplementedError("Optimized measurement matrices are not yet "\
+                                      "implemented for two-dimensional signals.")
+
         if not isinstance(eta, (float, int)):
             raise TypeError("eta must be a float or integer.")
         elif eta < 0:
@@ -484,6 +587,10 @@ class MeasurementMatrices:
            388-392, 2010, doi: 10.1109/CIP.2010.5604134.
         """
 
+        if self.signal2d:
+            raise NotImplementedError("Optimized measurement matrices are not yet "\
+                                      "implemented for two-dimensional signals.")
+
         if not isinstance(eta, (float, int)):
             raise TypeError("eta must be a float or integer.")
         elif eta < 0:
@@ -551,6 +658,10 @@ class MeasurementMatrices:
            optimization**," Signal Processing, vol. 125, pp. 9–20, Aug. 2016,
            doi: 10.1016/j.sigpro.2015.12.015.
         """
+
+        if self.signal2d:
+            raise NotImplementedError("Optimized measurement matrices are not yet "\
+                                      "implemented for two-dimensional signals.")
 
         if mu is not None:
             if not isinstance(mu, (float, int)):
@@ -655,6 +766,10 @@ class MeasurementMatrices:
            doi: 10.3390/math9040329.
         """
 
+        if self.signal2d:
+            raise NotImplementedError("Optimized measurement matrices are not yet "\
+                                      "implemented for two-dimensional signals.")
+
         if not isinstance(c, (float, int)):
             raise TypeError("c must be a float or integer.")
         elif c < 0:
@@ -754,6 +869,10 @@ class MeasurementMatrices:
            Takenaka–Malmquist Functions," 21, no. 4: 1229, 2021,
            doi: 10.3390/s21041229
         """
+
+        if self.signal2d:
+            raise NotImplementedError("Optimized measurement matrices are not yet "\
+                                      "implemented for two-dimensional signals.")
 
         if not isinstance(beta, (float, int)):
             raise TypeError("beta must be a float or integer.")

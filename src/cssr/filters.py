@@ -44,7 +44,7 @@ def _record_filter(func):
         return func(self, *args, **kwargs)
     return inner
 
-
+# =============================================================================
 
 class Filters:
     """
@@ -59,21 +59,27 @@ class Filters:
     ----------
     a0 : array like
         Sparsifying matrix (or signal).
-    x_signal : array like
-        X-components of the signal.
+    x_signal : tuple or array like
+        Coordinates of the signal. If an array is provided the signal is assumed
+        to be 1-dimensional, where x_signal represents the x-coordinates. If a
+        tuple is provided, the signal is assumed to be 2-dimensional, and the
+        first and second entry in the tuple are treated as the x and
+        y-coordinates of the signal, reprectively.
     y_signal : array like, optional
         Y-components of the signal can be provided iff no cutoff is provided
         and a rough estimation of the cutoff frequency is known. The latter
         must be provided through the optional parameter threshold_level.
         The default is None.
-    cutoff : float or list, optional
+    cutoff : float or array like, optional
         Cutoff "frequency" of filter (expressed in the same units as the fourier
         transform of x_signal) or a list of cutoff "frequencies" (that is, band
         edges) for a band-pass or band-stop filters. The latter option is used
         for FIR and Butterworth filters. For the thermal and instrumental low-pass
         filters, this parameter represents the temperature and energy cutoff,
-        respectively. If no cutoff is provided, a rough estimation is made.
-        The default is None.
+        respectively. If the cutoff is a tuple of two floats or two lists, the
+        signal is assumed to be two-dimensional. If no cutoff is provided, a
+        rough estimation is made, (currently only available for one-dimensional
+        signals). The default is None.
     threshold_level : float, optional
         If cutoff is None, threshold_level will be used to make a rough estimate
         of the cutoff "frequency" using threshold_level*max(magnitude of y_fft),
@@ -95,19 +101,31 @@ class Filters:
         else:
             self._a_tr = a0.copy()
             if filter_signal:
-                if not (a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1)):
-                    raise ValueError("The first argument must be an array of shape (n,) "\
-                                    "or (n,1) if filter_signal is True.")
-                else:
+                if (a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1)):
                     self._a_tr = self._a_tr.reshape((-1,))
+                elif a0.ndim > 2:
+                    raise ValueError("The first argument must be an array of "\
+                                     "shape (m,), (m,1) or (m, n) if filter_signal is True.")
             elif a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1):
-                    raise ValueError("The first argument must be an array of shape (n, m) "\
+                    raise ValueError("The first argument must be an array of shape (m, n) or (m, n, mt, nt)"\
                                     "if filter_signal is False.")
 
-        if not isinstance(x_signal, np.ndarray):
-            raise ValueError("The second argument must be an array.")
-        elif not (x_signal.ndim == 1 or (x_signal.ndim == 2 and x_signal.shape[1] == 1)):
-            raise ValueError("The second argument must be an array of shape (n,) or (n,1).")
+        if isinstance(x_signal, tuple):
+            if not (isinstance(x_signal[0], np.ndarray) and isinstance(x_signal[1], np.ndarray)):
+                raise ValueError("The second argument must be a tuple of arrays.")
+            elif not (x_signal[0].ndim == 1 or (x_signal[0].ndim == 2 and x_signal[0].shape[1] == 1)):
+                raise ValueError("The second array in the first argument must of shape (m,) or (m,1).")
+            elif not (x_signal[1].ndim == 1 or (x_signal[1].ndim == 2 and x_signal[1].shape[1] == 1)):
+                raise ValueError("The second array in the first argument must be an array of shape (m,) or (m,1).")
+            self.x = (x_signal[0].reshape((-1,1)), x_signal[1].reshape((-1,1)))
+            self.signal2d = True
+        else:
+            if not isinstance(x_signal, np.ndarray):
+                raise ValueError("The second argument must be an array or a tuple of arrays.")
+            elif not (x_signal.ndim == 1 or (x_signal.ndim == 2 and x_signal.shape[1] == 1)):
+                raise ValueError("The second argument must be an array of shape (m,) or (m,1).")
+            self.x = x_signal.reshape((-1,1))
+            self.signal2d = False
 
         if cutoff is not None:
             self._cutoff_detector_estimate = False
@@ -118,35 +136,51 @@ class Filters:
                 if len(cutoff) != 2:
                     raise ValueError("If cutoff is provided as a list, it must contain "\
                                      "exactly two values.")
-                elif cutoff[0] >= cutoff[1]:
+                elif cutoff[0] > cutoff[1]:
                     raise ValueError("If cutoff is provided as a list, its entries must be "\
                                      "sorted in ascending order.")
+            elif isinstance(cutoff, tuple) and self.signal2d:
+                if len(cutoff) != 2:
+                    raise ValueError("If cutoff is provided as a tuple, it must contain "\
+                                     "exactly two values.")
+                elif type(cutoff[0]) != type(cutoff[1]) and not (isinstance(cutoff[0], (int, float)) and isinstance(cutoff[1], (int, float))):
+                    raise ValueError("The first and second entry in cutoff must be of "\
+                                     "the same type.")
+                elif not isinstance(cutoff[0], (float, int)):
+                    raise ValueError("cutoff must be a positive non-zero value.")
+                elif isinstance(cutoff[0], list):
+                    if cutoff[0][0] > cutoff[0][1] or cutoff[1][0] > cutoff[1][1]:
+                        raise ValueError("If cutoff is provided as a tuple of list, the two "\
+                                         "list must be sorted in ascending order.")
+            elif isinstance(cutoff, tuple) and not self.signal2d:
+                raise ValueError("cutoff must be a list or a positive non-zero value.")
+
             if y_signal is not None:
                 print("Warning: y_signal is provided but cutoff is not None; y_signal will "\
                       "be ignored.")
 
-        elif cutoff is None:
+        elif cutoff is None and not self.signal2d:
             if (a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1)):
                 raise ValueError("Missing required third (keyword) argument cutoff.")
             elif isinstance(y_signal, np.ndarray):
                 if (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
                     self._y = y_signal.reshape((-1,1))
                 else:
-                    raise ValueError("If cutoff is None, y_signal must be provided as an array of shape (n,) or (n,1) "\
+                    raise ValueError("If cutoff is None, y_signal must be provided as an array of shape (m,) or (m,1) "\
                                      "in order to make a crude estimation of the cutoff \"frequency\". Else, provide a cutoff.")
             else:
-                raise ValueError("If cutoff is None, y_signal must be provided as an array of shape (n,) or (n,1) "\
+                raise ValueError("If cutoff is None, y_signal must be provided as an array of shape (m,) or (m,1) "\
                                  "in order to make a crude estimation of the cutoff \"frequency\". Else, provide a cutoff.")
-
-        if not (0 < threshold_level < 1):
-            raise ValueError("Threshold level must be a positive value between 0 and 1.")
+        elif cutoff is None and self.signal2d:
+            raise NotImplementedError("cutoff can not be None for 2-dimensional signals. "\
+                                      "Automatic cutoff detection is not yet "\
+                                      "available for 2-dimensional signals.")
 
         self.a0 = a0 # initial state
         self._cutoff = cutoff
         self._cutoff0 = cutoff # initial state
         self.filter_signal = filter_signal
         self.y = y_signal
-        self.x = x_signal.reshape((-1,1))
         self._filter_record = []
 
         self.__x_fft()
@@ -174,7 +208,10 @@ class Filters:
         None
         """
         if self.filter_signal:
-            self._a_tr = self.a0.copy().reshape((-1,))
+            if not self.signal2d:
+                self._a_tr = self.a0.copy().reshape((-1,))
+            else:
+                self._a_tr = self.a0.copy()
         else:
             self._a_tr = self.a0.copy()
         self._cutoff = self._cutoff0
@@ -236,10 +273,25 @@ class Filters:
         elif isinstance(value, list):
             if len(value) != 2:
                 raise ValueError("If cutoff is provided as a list, it must contain "\
-                                    "exactly two values.")
-            elif value[0] >= value[1]:
+                                 "exactly two values.")
+            elif value[0] > value[1]:
                 raise ValueError("If cutoff is provided as a list, its entries must be "\
-                                    "sorted in ascending order.")
+                                 "sorted in ascending order.")
+        elif isinstance(value, tuple):
+            if len(value) != 2:
+                raise ValueError("If cutoff is provided as a tuple, it must contain "\
+                                 "exactly two values.")
+            elif type(value[0]) != type(value[1]):
+                raise ValueError("The first and second entry in cutoff must be of "\
+                                 "the same type.")
+            elif isinstance(value[0], (float, int)):
+                if value[0] > value[1]:
+                    raise ValueError("If cutoff is provided as a list, its entries must be "\
+                                     "sorted in ascending order.")
+            elif isinstance(value[0], list):
+                if value[0][0] > value[0][1] or value[1][0] > value[1][1]:
+                    raise ValueError("If cutoff is provided as a tuple of list, the two "\
+                                     "list must be sorted in ascending order.")
         self._cutoff = value
 
 
@@ -284,11 +336,25 @@ class Filters:
             None if return_array is False.
         """
 
-        coeff = scipy.fft.fftshift(scipy.fft.fft(self.__heaviside_box_function()))
-        coeff = coeff if np.allclose(sum(coeff.real), 0) else coeff/(sum(coeff.real))
-        self.__convolve(coeff)
+        if not self.signal2d:
+            if isinstance(self._cutoff, list):
+                raise ValueError("cutoff must be a positive non-zero value.")
+        else:
+            if isinstance(self._cutoff, list):
+                raise ValueError("cutoff must be a tuple of positive non-zero values "\
+                                 "or a positive non-zero values.")
+            elif isinstance(self._cutoff, tuple):
+                if isinstance(self._cutoff[0], list):
+                    raise ValueError("cutoff must be a tuple of positive non-zero values "\
+                                     "or a positive non-zero value.")
+
+        raw_coeffs = self.__heaviside_box_function()
+        coeffs = [scipy.fft.fftshift(scipy.fft.fft(raw_coeff)) for raw_coeff in raw_coeffs]
+        cfs = [coeff if np.allclose(sum(coeff.real), 0) else coeff/(sum(coeff.real)) for coeff in coeffs]
+        self.__convolve(cfs)
         if return_array:
             return self._a_tr
+
 
 
     def __heaviside_box_function(self):
@@ -301,9 +367,20 @@ class Filters:
 
         Returns
         -------
-        Binary array based on the cutoff frequency.
+        coeffs : array like
+            Binary array based on the cutoff frequency.
         """
-        return 1*(abs(self.x_fft) > abs(self.x_fft).max() - self._cutoff)
+
+        if not self.signal2d:
+            coeffs = ((1*(abs(self.x_fft) > abs(self.x_fft).max() - self._cutoff)),)
+        else:
+            if isinstance(self._cutoff, (float, int)):
+                cutoff1, cutoff2 = self._cutoff, self._cutoff
+            else:
+                cutoff1, cutoff2 = self._cutoff[0], self._cutoff[1]
+            coeffs = (1*(abs(self.x_fft1) > abs(self.x_fft1).max() - cutoff1),  1*(abs(self.x_fft2) > abs(self.x_fft2).max() - cutoff2))
+        return coeffs
+
 
 
     @_record_filter
@@ -334,8 +411,24 @@ class Filters:
             return_array is False.
         """
 
+        if pass_zero in ["bandpass", "bandstop"]:
+            if self._cutoff_detector_estimate:
+                print("Warning: pass_zero is set to \"bandpass\" or \"bandstop\", but the estimated cutoff "\
+                     "is presumed to characterize a low-pass filter. pass_zero will be set to \"lowpass\".")
+                pass_zero = "lowpass"
+            else:
+                if not isinstance(self._cutoff, list):
+                    raise ValueError("If pass_zero is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+                if self.signal2d:
+                    if not isinstance(self._cutoff[0], list):
+                        raise ValueError("If pass_zero is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+
         tabs = self.__fir(numtabs, pass_zero)
-        self._a_tr = scipy.signal.filtfilt(tabs, 1, self._a_tr, padlen=0) # foward-backwards filtering
+        if not self.signal2d:
+            self._a_tr = scipy.signal.filtfilt(tabs[0], 1, self._a_tr, padlen=0) # foward-backwards filtering
+        else:
+            self._a_tr = scipy.signal.filtfilt(tabs[0], 1, self._a_tr,  axis=-2, padlen=0)
+            self._a_tr = scipy.signal.filtfilt(tabs[1], 1, self._a_tr,  axis=-1, padlen=0)
         if return_array:
             return self._a_tr
 
@@ -364,19 +457,25 @@ class Filters:
             An array of coefficients for the FIR filter.
         """
 
-        if pass_zero in ["bandpass", "bandstop"]:
-            if self._cutoff_detector_estimate:
-                print("Warning: pass_zero is set to \"bandpass\" or \"bandstop\", but the estimated cutoff "\
-                     "is presumed to characterize a low-pass filter. pass_zero will be set to \"lowpass\".")
-                pass_zero = "lowpass"
+        if not self.signal2d:
+            fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
+            nyq = 0.5*fs # nyquist frequency
+            cutoff = self._cutoff / nyq if isinstance(self._cutoff, (float, int)) else [c/nyq for c in self._cutoff]
+            tabs = (scipy.signal.firwin(numtabs, cutoff, pass_zero=pass_zero), )
+        else:
+            if isinstance(self._cutoff, (float, int, list)):
+                cutoff1, cutoff2 = self._cutoff, self._cutoff
             else:
-                if not isinstance(self._cutoff, list):
-                    raise ValueError("If pass_zero is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+                cutoff1, cutoff2 = self._cutoff[0], self._cutoff[1]
 
-        fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
-        nyq = 0.5*fs # nyquist frequency
-        cutoff = self._cutoff / nyq if isinstance(self._cutoff, (float, int)) else [c/nyq for c in self._cutoff]
-        tabs = scipy.signal.firwin(numtabs, cutoff, pass_zero=pass_zero)
+            fs1, fs2 = abs(self.x_fft1[-1] - self.x_fft1[0]),  abs(self.x_fft2[-1] - self.x_fft2[0])
+            nyq1, nyq2 = 0.5*fs1, 0.5*fs2
+
+            cutoff1 = cutoff1 / nyq1 if isinstance(cutoff1, (float, int)) else [c/nyq1 for c in cutoff1]
+            cutoff2 = cutoff2 / nyq2 if isinstance(cutoff2, (float, int)) else [c/nyq2 for c in cutoff2]
+            tabs1 = (scipy.signal.firwin(numtabs, cutoff1, pass_zero=pass_zero), scipy.signal.firwin(numtabs, cutoff1, pass_zero=pass_zero))
+            tabs2 = (scipy.signal.firwin(numtabs, cutoff2, pass_zero=pass_zero), scipy.signal.firwin(numtabs, cutoff2, pass_zero=pass_zero))
+            tabs = (tabs1, tabs2)
         return tabs
 
 
@@ -402,8 +501,24 @@ class Filters:
             None if return_array is False.
         """
 
+        if btype in ["bandpass", "bandstop"]:
+            if self._cutoff_detector_estimate:
+                print("Warning: btype is set to \"bandpass\" or \"bandstop\", but the estimated cutoff "\
+                     "is presumed to characterize a low-pass filter. btype will be set to \"lowpass\".")
+                btype = "lowpass"
+            else:
+                if not isinstance(self._cutoff, list):
+                    raise ValueError("If btype is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+                if self.signal2d:
+                    if not isinstance(self._cutoff[0], list):
+                        raise ValueError("If btype is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+
         sos = self.__butter(order, btype)
-        self._a_tr = scipy.signal.sosfiltfilt(sos, self._a_tr, padlen=0) # foward-backwards filtering
+        if not self.signal2d:
+            self._a_tr = scipy.signal.sosfiltfilt(sos[0], self._a_tr, padlen=0) # foward-backwards filtering
+        else:
+            self._a_tr = scipy.signal.sosfiltfilt(sos[0], self._a_tr, axis=-2, padlen=0)
+            self._a_tr = scipy.signal.sosfiltfilt(sos[1], self._a_tr, axis=-1, padlen=0)
         if return_array:
             return self._a_tr
 
@@ -426,20 +541,22 @@ class Filters:
         sos : ndarray
             Second-order sections representation of the IIR filter.
         """
-
-        if btype in ["bandpass", "bandstop"]:
-            if self._cutoff_detector_estimate:
-                print("Warning: btype is set to \"bandpass\" or \"bandstop\", but the estimated cutoff "\
-                     "is presumed to characterize a low-pass filter. btype will be set to \"lowpass\".")
-                btype = "lowpass"
+        if not self.signal2d:
+            fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
+            nyq = 0.5*fs # nyquist frequency
+            cutoff = self._cutoff / nyq if isinstance(self._cutoff, (float, int)) else [c/nyq for c in self._cutoff]
+            sos = (scipy.signal.butter(order, cutoff, btype=btype, output="sos"),)
+        else:
+            if isinstance(self._cutoff, (float, int, list)):
+                cutoff1, cutoff2 = self._cutoff, self._cutoff
             else:
-                if not isinstance(self._cutoff, list):
-                    raise ValueError("If btype is \"bandpass\" or \"bandstop\", cutoff must be a list of two floats.")
+                cutoff1, cutoff2 = self._cutoff[0], self._cutoff[1]
 
-        fs = abs(self.x_fft[-1] - self.x_fft[0]) # Sampling rate, or number of measurements per second
-        nyq = 0.5*fs # nyquist frequency
-        cutoff = self._cutoff / nyq if isinstance(self._cutoff, (float, int)) else [c/nyq for c in self._cutoff]
-        sos = scipy.signal.butter(order, cutoff, btype=btype, output="sos")
+            fs1, fs2 = abs(self.x_fft1[-1] - self.x_fft1[0]),  abs(self.x_fft2[-1] - self.x_fft2[0])
+            nyq1, nyq2 = 0.5*fs1, 0.5*fs2
+            cutoff1 = cutoff1 / nyq1 if isinstance(cutoff1, (float, int)) else [c/nyq1 for c in cutoff1]
+            cutoff2 = cutoff2 / nyq2 if isinstance(cutoff2, (float, int)) else [c/nyq2 for c in cutoff2]
+            sos = (scipy.signal.butter(order, cutoff1, btype=btype, output="sos"), scipy.signal.butter(order, cutoff2, btype=btype, output="sos"))
         return sos
 
 
@@ -468,9 +585,12 @@ class Filters:
            1973, doi: 10.1103/PhysRevB.7.2336.
         """
 
-        coeff = self.__instrumental_function()
-        coeff = coeff if np.allclose(sum(coeff), 0) else coeff/(sum(coeff))
-        self.__convolve(coeff)
+        if not isinstance(self._cutoff, (float, int)):
+            raise ValueError("cutoff must be a positive non-zero value.")
+
+        raw_coeffs = self.__instrumental_function()
+        cfs = [coeff if np.allclose(sum(coeff.real), 0) else coeff/(sum(coeff.real)) for coeff in raw_coeffs]
+        self.__convolve(cfs)
         if return_array:
             return self._a_tr
 
@@ -493,18 +613,28 @@ class Filters:
         """
 
         Vmod = self._cutoff
-        x = self.x.ravel()
-        x = x - (max(x) + min(x))/2
-
-        dx = np.mean(np.diff(x))
-        if dx > 1.22 * Vmod: # check if the resolution limit has been breached
-            center = np.argmin(abs(x))
-            phi = np.zeros(len(x))
-            phi[center] = (8/(3*np.pi)) * ((np.sign(abs(Vmod**2)) * (abs(Vmod**2)**(3/2)))/(Vmod**4))
+        if not self.signal2d:
+            xs = (self.x.ravel(),)
         else:
-            phi = (8/(3*np.pi)) * ((np.sign(abs(Vmod**2 - x**2)) * (abs(Vmod**2 - x**2)**(3/2)))/(Vmod**4)) * (abs(x) < Vmod)
+            xs = (self.x[0].ravel(),self.x[1].ravel())
 
-        return phi
+        coeffs = []
+        for x in xs:
+            x = x - (max(x) + min(x))/2
+
+            dx = np.mean(np.diff(x))
+            if dx > 1.22 * Vmod: # check if the resolution limit has been breached
+                center = np.argmin(abs(x))
+                phi = np.zeros(len(x))
+                phi[center] = (8/(3*np.pi)) * ((np.sign(abs(Vmod**2)) * (abs(Vmod**2)**(3/2)))/(Vmod**4))
+            else:
+                phi = (8/(3*np.pi)) * ((np.sign(abs(Vmod**2 - x**2)) * (abs(Vmod**2 - x**2)**(3/2)))/(Vmod**4)) * (abs(x) < Vmod)
+            coeffs.append(phi)
+
+        if self.signal2d:
+            return (coeffs[0], coeffs[1])
+        else:
+            return (coeffs[0],)
 
 
     @_record_filter
@@ -532,9 +662,12 @@ class Filters:
            1973, doi: 10.1103/PhysRevB.7.2336.
         """
 
-        coeff = self.__thermal_function()
-        coeff = coeff if np.allclose(sum(coeff), 0) else coeff/(sum(coeff))
-        self.__convolve(coeff)
+        if not isinstance(self._cutoff, (float, int)):
+            raise ValueError("cutoff must be a positive non-zero value.")
+
+        raw_coeffs = self.__thermal_function()
+        cfs = [coeff if np.allclose(sum(coeff.real), 0) else coeff/(sum(coeff.real)) for coeff in raw_coeffs]
+        self.__convolve(cfs)
         if return_array:
             return self._a_tr
 
@@ -558,34 +691,44 @@ class Filters:
         temperature = self._cutoff
         factor = (1.60217662/1.38064852) * 1e4 # e/k
 
-        x = self.x.ravel()
-        x = np.array(x - (max(x) + min(x))/2, dtype=float) # for np.exp
-
-        dx = np.mean(np.diff(x))
-        if dx > 5.4 * temperature / factor: # check if the resolution limit has been breached
-            center = np.argmin(np.abs(x))
-            chi = np.zeros(len(x))
-            chi[center] = 1/(6*temperature) * factor
+        if not self.signal2d:
+            xs = (self.x.ravel(),)
         else:
-            v = (x/temperature) * factor
+            xs = (self.x[0].ravel(),self.x[1].ravel())
 
-            v = -abs(v)
-            u = np.exp(v)
-            chi = ((1/temperature) * u * ((v - 2) * u + v + 2)/(u - 1)**3)
+        coeffs = []
+        for x in xs:
+            x = np.array(x - (max(x) + min(x))/2, dtype=float) # for np.exp
 
-            chi = chi * (chi <= 1/(6*temperature)) + 1/(6*temperature) * (chi > 1/(6*temperature))
-            chi = chi* factor * (chi >= 1e-16) # drop small values
+            dx = np.mean(np.diff(x))
+            if dx > 5.4 * temperature / factor: # check if the resolution limit has been breached
+                center = np.argmin(np.abs(x))
+                chi = np.zeros(len(x))
+                chi[center] = 1/(6*temperature) * factor
+            else:
+                v = (x/temperature) * factor
 
-        return chi
+                v = -abs(v)
+                u = np.exp(v)
+                chi = ((1/temperature) * u * ((v - 2) * u + v + 2)/(u - 1)**3)
+
+                chi = chi * (chi <= 1/(6*temperature)) + 1/(6*temperature) * (chi > 1/(6*temperature))
+                chi = chi* factor * (chi >= 1e-16) # drop small values
+            coeffs.append(chi)
+
+        if self.signal2d:
+            return (coeffs[0], coeffs[1])
+        else:
+            return (coeffs[0],)
 
 
-    def __convolve(self, coeff):
+    def __convolve(self, coeffs):
         """
         Convolves a coeff with a0.
 
         Parameters
         ----------
-        coeff : ndarray
+        coeffs : tuple or ndarray
             Coefficients of the filter.
 
         Returns
@@ -593,10 +736,40 @@ class Filters:
         None.
         """
 
-        if not self.filter_signal:
-            self._a_tr = scipy.signal.convolve(self._a_tr, coeff[:,None], mode="same")
+        if len(coeffs) == 2:
+            coeff1, coeff2 = coeffs
+
+            length1 = len(coeff1)
+            length2 = len(coeff2)
+            start1 = (length1-1)//2 if np.mod(length1, 2) else length1//2
+            start2 = (length2-1)//2 if np.mod(length2, 2) else length2//2
+
+            if not self.filter_signal:
+                self._a_tr = scipy.signal.convolve(self._a_tr, coeff1[None, None, :, None], mode="full")
+                self._a_tr = self._a_tr[:, :, start1: start1 + length1, :]
+
+                self._a_tr = scipy.signal.convolve(self._a_tr, coeff2[None, None, None, :], mode="full")
+                self._a_tr = self._a_tr[:, :, :, start2: start2 + length2]
+            else:
+                # using two steps instead of one
+                self._a_tr = scipy.signal.convolve(self._a_tr, coeff1[:, None], mode="full")
+                self._a_tr = self._a_tr[start1: start1 + length1, :]
+
+                self._a_tr = scipy.signal.convolve(self._a_tr, coeff2[None, :], mode="full")
+                self._a_tr = self._a_tr[:, start2: start2 + length2]
+
         else:
-            self._a_tr = scipy.signal.convolve(coeff, self._a_tr, mode="same")
+            coeff = coeffs[0]
+
+            length = len(coeff)
+            start = (length-1)//2 if np.mod(length, 2) else length//2
+
+            if not self.filter_signal:
+                self._a_tr = scipy.signal.convolve(self._a_tr, coeff[:,None], mode="full")
+                self._a_tr = self._a_tr[start: start + length, :]
+            else:
+                self._a_tr = scipy.signal.convolve(coeff, self._a_tr, mode="full")
+                self._a_tr = self._a_tr[start: start + length]
 
 
     # experimental feature, will be modified in later versions
@@ -619,19 +792,32 @@ class Filters:
         """
 
         if self._cutoff is None:
-            y_fft = scipy.fft.fftshift(scipy.fft.fft(self.y, axis=0))
-            y_fft = y_fft/np.linalg.norm(y_fft, "fro")
-            threshold = max(abs(y_fft))*threshold_level
-            cutoff_arg = next(i for i, item in enumerate(abs(y_fft) >= threshold) if item)
-            self._cutoff = abs(self.x_fft[cutoff_arg])
-            self._cutoff_detector_estimate = True
+            # implementation needed
+            if isinstance(self.x, tuple):
+                raise NotImplementedError("Automatic cutoff detection is not yet "\
+                                          "available for 2-dimensional signals.")
+            else:
+                y_fft = scipy.fft.fftshift(scipy.fft.fft(self.y, axis=0))
+                y_fft = y_fft/np.linalg.norm(y_fft, "fro")
+                threshold = max(abs(y_fft))*threshold_level
+                cutoff_arg = next(i for i, item in enumerate(abs(y_fft) >= threshold) if item)
+                self._cutoff = abs(self.x_fft[cutoff_arg])
+                self._cutoff_detector_estimate = True
 
 
     def __x_fft(self):
         """ Calculates the frequency component in the fourier domain."""
-        m = len(self._a_tr)
-        x_fft = scipy.fft.fftshift(scipy.fft.fftfreq(m, d=abs(self.x[-1,0]-self.x[0,0])/self.x.shape[0])) # spatial frequency centered around 0
-        self.x_fft = np.array(x_fft, dtype=object) # formating due to python 32bit
+        if not self.signal2d:
+            m = self.x.shape[0]
+            x_fft1 = scipy.fft.fftshift(scipy.fft.fftfreq(m, d=abs(self.x[-1,0]-self.x[0,0])/self.x.shape[0])) # spatial frequency centered around 0
+            self.x_fft = np.array(x_fft1, dtype=object) # formating due to python 32bit
+        else:
+            m1 = self.x[0].shape[0]
+            m2 = self.x[1].shape[0]
+            x_fft1 = scipy.fft.fftshift(scipy.fft.fftfreq(m1, d=abs(self.x[0][-1,0]-self.x[0][0,0])/self.x[0].shape[0])) # spatial frequency centered around 0
+            x_fft2 = scipy.fft.fftshift(scipy.fft.fftfreq(m2, d=abs(self.x[1][-1,0]-self.x[1][0,0])/self.x[1].shape[0])) # spatial frequency centered around 0
+            self.x_fft1 = np.array(x_fft1, dtype=object) # formating due to python 32bit
+            self.x_fft2 = np.array(x_fft2, dtype=object) # formating due to python 32bit
 
 
 # =============================================================================

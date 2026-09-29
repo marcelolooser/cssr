@@ -80,14 +80,21 @@ def _boost_superresolver(func):
         elif atol < 0:
             raise ValueError("atol must be a non-negative float.")
 
-        if rho is None:
-            temp1 = (self.a.T.dot(self.ar.dot(args[0].reshape((-1,1))))).ravel()
-            rho = np.count_nonzero(temp1 >= eta* np.linalg.norm(temp1, np.inf))
+
+
+        if not self.signal2d:
+            if rho is None:
+                temp1 = (self.a.T.dot(self.ar.dot(args[0].reshape((-1,1))))).ravel()
+                rho = np.count_nonzero(temp1 >= eta * np.linalg.norm(temp1, np.inf))
+        else:
+            if rho is None:
+                temp1 = np.einsum("ijkl,ij->kl", self.a, np.einsum("ijkl,kl->ij", self.ar, args[0]))
+                rho = np.count_nonzero(temp1 >= eta * np.max(np.abs(temp1)))
 
         if rho == 0: # perform the unboosted reconstruction
             y_hat, y0 = func(self, *args, **kwargs)
 
-        else:
+        elif not self.signal2d and rho != 0:
             alpha0 = self.ar.dot(args[0].reshape((-1,1)).copy())
             alpha = alpha0.copy()
             obj_fun = (0.5 * np.linalg.norm(alpha, "fro")**2 - alpha.T.dot(alpha))[0,0] # objective function of the dual problem
@@ -115,6 +122,36 @@ def _boost_superresolver(func):
                 if stop_iteration <= atol:
                     break
 
+        elif rho != 0:
+            alpha0 = np.einsum("ijkl,kl->ij", self.ar, args[0])
+            alpha = alpha0.copy()
+            obj_fun = 0.5 * np.linalg.norm(alpha, "fro")**2 - np.sum(alpha**2) # objective function of the dual problem
+            y0 = np.zeros(self.mt*self.nt, dtype=complex)
+
+            s, sc = [], range(self.mt*self.nt) # initiate active and complementary set
+            for _ in range(max_iter):
+
+                # conduct worst case analysis for most active atoms in dictionary
+                g = np.einsum("ijk,ij->k", self.a.reshape(self.ks, self.ls, self.mt*self.nt), alpha)
+                add_s = list(abs(g).ravel().argsort()[::-1]) # the biggest values indicate the most active atoms in the dictionary
+                add_s = self._reduce(add_s, s, stop_cond=rho)
+                s.extend(add_s)
+                sc = self._reduce(sc, s)
+                y0[sc] = 0
+
+                y_hat, y_sparse_hat = func(self, *args, **kwargs, y0=y0[s], support=s)  # perform superresolution
+                y0[s] = y_sparse_hat
+
+                alpha = alpha0 - np.einsum("ijk,k->ij", self.a.reshape(self.ks, self.ls, self.mt*self.nt), y0)
+                obj_fun_new = 0.5 * np.linalg.norm(alpha, "fro")**2 - np.sum(alpha**2) # objective function of the dual problem
+                stop_iteration = abs(obj_fun - obj_fun_new) / (rho * np.linalg.norm(alpha0, "fro"))
+                obj_fun = obj_fun_new
+
+                if stop_iteration <= atol:
+                    break
+
+            y0 = y0.reshape(self.mt, self.nt)
+
         return y_hat, y0
     return inner
 
@@ -141,26 +178,36 @@ class Superresolvers:
 
         if not isinstance(a0, np.ndarray):
             raise ValueError("The first argument must be an array.")
-        elif a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1):
-            raise ValueError("The first argument must be an array of shape (n, m) with m > 1.")
+        elif a0.ndim == 1 or (a0.ndim == 2 and a0.shape[1] == 1) or a_tr.ndim == 3 or a_tr.ndim > 4:
+            raise ValueError("The first argument must be a 2D array of shape "\
+                             "(m, n) with n > 1 or a tensor of shape (m, n, mt, nt)")
 
         if not isinstance(a_tr, np.ndarray):
             raise ValueError("The second argument must be an array.")
-        elif a_tr.ndim == 1 or (a_tr.ndim == 2 and a_tr.shape[1] == 1):
-            raise ValueError("The second argument must be an 2D array of shape (n, m) with m > 1.")
+        elif a_tr.ndim == 1 or (a_tr.ndim == 2 and a_tr.shape[1] == 1) or a_tr.ndim == 3 or a_tr.ndim > 4:
+            raise ValueError("The second argument must be a 2D array of shape "\
+                             "(m, n) with n > 1 or a tensor of shape (m, n, mt, nt)")
 
         if not isinstance(ar, np.ndarray):
             raise ValueError("The third argument must be an array.")
-        elif ar.ndim == 1 or (ar.ndim == 2 and ar.shape[1] == 1):
-            raise ValueError("The third argument must be an array of shape (n, m) with m > 1.")
+        elif ar.ndim == 1 or (ar.ndim == 2 and ar.shape[1] == 1) or a_tr.ndim == 3 or a_tr.ndim > 4:
+            raise ValueError("The third argument must be a 2D array of shape "\
+                             "(ks, n) with k > 1 or a tensor of shape (mt, nt, ks, ls)")
+        else:
+            self.signal2d = True if a0.ndim > 2 else False
 
         self.a0 = a0
-        self.n = a0.shape[1] # number of columns
-        self.m = ar.shape[0]
-
         self.ar = ar
         self.a_tr = a_tr
-        self.a = ar.dot(a_tr)
+
+        if not self.signal2d:
+            self.m, self.n = a0.shape # m := signal shape, n := number of atoms
+            self.ks = ar.shape[0] # ks := number of samples
+            self.a = np.dot(ar, a_tr)
+        else:
+            self.m, self.n, self.mt, self.nt = a0.shape # (m ,n) := signal shape, mt*nt := number of atoms
+            self.ks, self.ls = ar.shape[:2] # (ks, ls) := sampling
+            self.a = np.einsum("ijkl,klpq->ijpq", ar, a_tr)
 
 
     @staticmethod
@@ -204,25 +251,46 @@ class Superresolvers:
 
         if not isinstance(y_signal, np.ndarray):
             raise ValueError("The first argument must be an array.")
-        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
-            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+        if not self.signal2d:
+            if not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+                raise ValueError("The first argument must be an array of shape (m,) or (m,1).")
+        else:
+            if not (y_signal.ndim == 2 and y_signal.shape[1] > 1):
+                raise ValueError("The first argument must be an array of shape (m,n).")
 
-        y_t = y_signal.reshape((-1,1))
-        _, axes3d = y_t.shape
+        if not self.signal2d:
+            y_t = y_signal.reshape((-1,1))
+            _, axes3d = y_t.shape
 
-        b = self.ar.dot(y_t) # random measured signal
-        y0 = np.dot(self.a.T, b) # initial vector
+            b = self.ar.dot(y_t) # random measured signal
+            y0 = np.dot(self.a.T, b) # initial vector
 
-        vx = cvxpy.Variable((self.n, axes3d), complex=True)
-        vx.value = y0
+            vx = cvxpy.Variable((self.n, axes3d), complex=True)
+            vx.value = y0
 
-        objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
-        constraints = [self.a @ vx == b]
-        prob = cvxpy.Problem(objective, constraints)
-        prob.solve(solver=solver)
+            objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
+            constraints = [self.a @ vx == b]
+            prob = cvxpy.Problem(objective, constraints)
+            prob.solve(solver=solver)
 
-        y_sparse_hat = vx.value.real  # recovered sparse signal
-        y_hat = self.a0.dot(y_sparse_hat).real
+            y_sparse_hat = vx.value.real  # recovered sparse signal
+            y_hat = self.a0.dot(y_sparse_hat).real
+
+        else:
+            y_t = y_signal
+            b = np.einsum("ijkl,kl->ij", self.ar, y_t) # random measured signal
+            y0 = np.einsum("ijkl,ij->kl", self.a, b) # initial vector
+            vx = cvxpy.Variable(y0.shape, complex=True)
+            vx.value = y0
+
+            objective = cvxpy.Minimize(cvxpy.sum(cvxpy.abs(vx)))
+            constraints = [cvxpy.einsum("ijkl,kl->ij", self.a, vx) == b]
+            prob = cvxpy.Problem(objective, constraints)
+            prob.solve(solver=solver, canon_backend='SCIPY')
+
+            y_sparse_hat = vx.value.real # recovered sparse signal
+            y_hat = np.einsum("ijkl,kl->ij", self.a0.real, y_sparse_hat)
+
         return y_hat, y_sparse_hat
 
 
@@ -257,31 +325,53 @@ class Superresolvers:
 
         if not isinstance(y_signal, np.ndarray):
             raise ValueError("The first argument must be an array.")
-        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
-            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+        if not self.signal2d:
+            if not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+                raise ValueError("The first argument must be an array of shape (m,) or (m,1).")
+        else:
+            if not (y_signal.ndim == 2 and y_signal.shape[1] > 1):
+                raise ValueError("The first argument must be an array of shape (m,n).")
 
         if not isinstance(noise_level, (int, float)):
             raise ValueError("The second argument must be a float or an integer.")
         elif noise_level < 0:
             raise ValueError("The second argument must be a non-negative float or integer.")
 
-        y_t = y_signal.reshape((-1,1))
-        _, axes3d = y_t.shape
+        if not self.signal2d:
+            y_t = y_signal.reshape((-1,1))
+            _, axes3d = y_t.shape
 
-        b = self.ar.dot(y_t) # random measured signal
-        y0 = np.dot(self.a.T, b) # initial vector
+            b = self.ar.dot(y_t) # random measured signal
+            y0 = np.dot(self.a.T, b) # initial vector
 
-        vx = cvxpy.Variable((self.n, axes3d), complex=True)
-        vx.value = y0
+            vx = cvxpy.Variable((self.n, axes3d), complex=True)
+            vx.value = y0
 
-        objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
-        constraints = [cvxpy.sum_squares(self.a @ vx - b) <= noise_level]
-        prob = cvxpy.Problem(objective, constraints)
-        prob.solve(solver=solver)
+            objective = cvxpy.Minimize(cvxpy.norm(vx, 1))
+            constraints = [cvxpy.sum_squares(self.a @ vx - b) <= noise_level]
+            prob = cvxpy.Problem(objective, constraints)
+            prob.solve(solver=solver)
 
-        y_sparse_hat = vx.value.real # recovered sparse signal
-        y_hat = self.a0.real.dot(y_sparse_hat)
+            y_sparse_hat = vx.value.real # recovered sparse signal
+            y_hat = self.a0.real.dot(y_sparse_hat)
+
+        else:
+            y_t = y_signal
+            b = np.einsum("ijkl,kl->ij", self.ar, y_t) # random measured signal
+            y0 = np.einsum("ijkl,ij->kl", self.a, b) # initial vector
+            vx = cvxpy.Variable(y0.shape, complex=True)
+            vx.value = y0
+
+            objective = cvxpy.Minimize(cvxpy.sum(cvxpy.abs(vx)))
+            constraints = [cvxpy.sum_squares(cvxpy.einsum("ijkl,kl->ij", self.a, vx) - b) <= noise_level]
+            prob = cvxpy.Problem(objective, constraints)
+            prob.solve(solver=solver, canon_backend='SCIPY')
+
+            y_sparse_hat = vx.value.real # recovered sparse signal
+            y_hat = np.einsum("ijkl,kl->ij", self.a0.real, y_sparse_hat)
+
         return y_hat, y_sparse_hat
+
 
 
     @_boost_superresolver
@@ -323,8 +413,12 @@ class Superresolvers:
 
         if not isinstance(y_signal, np.ndarray):
             raise ValueError("The first argument must be an array.")
-        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
-            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+        if not self.signal2d:
+            if not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+                raise ValueError("The first argument must be an array of shape (m,) or (m,1).")
+        else:
+            if not (y_signal.ndim == 2 and y_signal.shape[1] > 1):
+                raise ValueError("The first argument must be an array of shape (m,n).")
 
         if lam is not None:
             if not isinstance(lam, (int, float)):
@@ -342,48 +436,93 @@ class Superresolvers:
         elif max_iter < 0:
             raise ValueError("max_iter must be a positive integer.")
 
-        y_t = y_signal.reshape((-1,1))
-        _, axes3d = y_t.shape
-        lam = 0.007 * np.linalg.norm(self.a_tr.T.dot(y_t).ravel(), np.inf) + 1e-6 if lam is None else lam
+        if not self.signal2d:
+            y_t = y_signal.reshape((-1,1))
+            _, axes3d = y_t.shape
+            lam = 0.007 * np.linalg.norm(self.a_tr.T.dot(y_t).ravel(), np.inf) + 1e-6 if lam is None else lam
 
-        if support is None:
-            support = range(self.n)
+            if support is None:
+                support = range(self.n)
 
-        b = self.ar.dot(y_t) # random measured signal
-        y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (sparse proxy)
-        vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
-        vx.value = y0 # rough guess
+            b = self.ar.dot(y_t) # random measured signal
+            y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (sparse proxy)
+            vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
+            vx.value = y0 # rough guess
 
-        s, sc = [], list(range(y0.shape[0])) # active set and complementary set
-        loop_count = 0
-        while loop_count < max_iter:
+            s, sc = [], list(range(y0.shape[0])) # active set and complementary set
+            loop_count = 0
+            while loop_count < max_iter:
 
-            res = (b - self.a[:,support] @ vx.value).T if not len(s) else (b - self.a[:,support][:,s] @ vx.value[s,:]).T
-            usefulness = abs(res @ self.a[:,support]).ravel()[sc]
-            usefulness = usefulness * (usefulness > lam)
-            length_usefulness = np.count_nonzero(usefulness > 0.)
+                res = (b - self.a[:,support] @ vx.value).T if not len(s) else (b - self.a[:,support][:,s] @ vx.value[s,:]).T
+                usefulness = abs(res @ self.a[:,support]).ravel()[sc]
+                usefulness = usefulness * (usefulness > lam)
+                length_usefulness = np.count_nonzero(usefulness > 0.)
 
-            if not length_usefulness:
-                break
-            else:
-                max_items = l * (length_usefulness >= l) + length_usefulness * (length_usefulness < l) # needed if len(usefulness) is smaller to l
-                indices_shifted = np.argpartition(usefulness, -max_items)[-max_items:] # searches for the max_items biggest values in usefulness
-                indices = np.array(sc)[indices_shifted]
-                s = list(set(s + list(indices)))
-                sc = self._reduce(sc, s)
+                if not length_usefulness:
+                    break
+                else:
+                    max_items = l * (length_usefulness >= l) + length_usefulness * (length_usefulness < l) # needed if len(usefulness) is smaller to l
+                    indices_shifted = np.argpartition(usefulness, -max_items)[-max_items:] # searches for the max_items biggest values in usefulness
+                    indices = np.array(sc)[indices_shifted]
+                    s = list(set(s + list(indices)))
+                    sc = self._reduce(sc, s)
 
-                objective = cvxpy.Minimize(0.5 * cvxpy.sum_squares(self.a[:,support][:,s] @ vx[s,:] - b) + lam * cvxpy.norm(vx[s,:], 1)) # lagrangian method
-                prob = cvxpy.Problem(objective)
-                prob.solve(solver=solver)
+                    objective = cvxpy.Minimize(0.5 * cvxpy.sum_squares(self.a[:,support][:,s] @ vx[s,:] - b) + lam * cvxpy.norm(vx[s,:], 1)) # lagrangian method
+                    prob = cvxpy.Problem(objective)
+                    prob.solve(solver=solver)
 
-                add_off_support_indices = [i for i, item in enumerate(abs(vx.value[s,:]) <= 0.) if item[0]]
-                s = self._reduce(s, add_off_support_indices)
-                sc = list(set(sc + add_off_support_indices))
-                vx.value[sc] = 0
-                loop_count += 1
+                    add_off_support_indices = [i for i, item in enumerate(abs(vx.value[s,:]) <= 0.) if item[0]]
+                    s = self._reduce(s, add_off_support_indices)
+                    sc = list(set(sc + add_off_support_indices))
+                    vx.value[sc] = 0
+                    loop_count += 1
 
-        y_sparse_hat = vx.value # recovered sparse signal
-        y_hat = self.a0[:,support][:,s].dot(y_sparse_hat[s,:])
+            y_sparse_hat = vx.value # recovered sparse signal
+            y_hat = self.a0[:,support][:,s].real.dot(y_sparse_hat[s,:])
+
+        else:
+            y_t = y_signal
+            lam = 0.007 * np.linalg.norm(np.einsum("ijkl,kl->ij", self.a_tr, y_t), np.inf) + 1e-6 if lam is None else lam
+
+            if support is None:
+                support = range(self.mt*self.nt)
+
+            b = np.einsum("ijkl,kl->ij", self.ar, y_t) # random measured signal
+            y0 = np.zeros(self.mt*self.nt)[support] if y0 is None else y0 # initial matrix
+            vx = cvxpy.Variable(y0.shape, complex=True)
+            vx.value = y0 # rough guess
+            s, sc = [], list(range(y0.shape[0]))
+
+            loop_count = 0
+            while loop_count < max_iter:
+
+                res = (b - np.einsum("ijk,k->ij", self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support], vx.value)) if not len(s) else (b - np.einsum("ijk,k->ij", self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support][:, :, s], vx.value[s]))
+                usefulness = abs(np.einsum("ij,ijk->k", res, self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support]))[sc]
+                usefulness = usefulness * (usefulness > lam)
+                length_usefulness = np.count_nonzero(usefulness > 0.)
+
+                if not length_usefulness:
+                    break
+                else:
+                    max_items = l * (length_usefulness >= l) + length_usefulness * (length_usefulness < l) # needed if len(usefulness) is smaller to l
+                    indices_shifted = np.argpartition(usefulness, -max_items)[-max_items:] # searches for the max_items biggest values in usefulness
+                    indices = np.array(sc)[indices_shifted]
+                    s = list(set(s + list(indices)))
+                    sc = self._reduce(sc, s)
+
+                    objective = cvxpy.Minimize(0.5 * cvxpy.sum_squares(cvxpy.einsum("ijk,k->ij", self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support][:, :, s], vx[s]) - b) + lam * cvxpy.norm(vx[s], 1)) # lagrangian method
+                    prob = cvxpy.Problem(objective)
+                    prob.solve(solver=solver, canon_backend='SCIPY')
+
+                    add_off_support_indices = [i for i, item in enumerate(abs(vx.value[s]) <= 0.) if not item]
+                    s = self._reduce(s, add_off_support_indices)
+                    sc = list(set(sc + list(add_off_support_indices)))
+                    vx.value[sc] = 0
+                    loop_count += 1
+
+            y_hat = np.einsum("ijk,k->ij", self.a0.reshape(self.m, self.n, self.mt*self.nt)[:,:,support][:,:,s].real, vx.value[s])
+            y_sparse_hat = vx.value.reshape(self.mt, self.nt) if y0 is None else vx.value  # recovered sparse signal
+
         return y_hat, y_sparse_hat
 
 
@@ -431,8 +570,12 @@ class Superresolvers:
 
         if not isinstance(y_signal, np.ndarray):
             raise ValueError("The first argument must be an array.")
-        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
-            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+        if not self.signal2d:
+            if not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+                raise ValueError("The first argument must be an array of shape (m,) or (m,1).")
+        else:
+            if not (y_signal.ndim == 2 and y_signal.shape[1] > 1):
+                raise ValueError("The first argument must be an array of shape (m,n).")
 
         if not isinstance(noise_level, (int, float)):
             raise ValueError("The second argument must be a float or an integer.")
@@ -459,57 +602,107 @@ class Superresolvers:
         elif max_iter < 0:
             raise ValueError("max_iter must be a positive integer.")
 
-        y_t = y_signal.reshape((-1,1))
-        _, axes3d = y_t.shape
 
-        if support is None:
-            support = range(self.n)
+        if not self.signal2d:
+            y_t = y_signal.reshape((-1,1))
+            _, axes3d = y_t.shape
 
-        b = self.ar.dot(y_t) # random measured signal
-        y0 = np.dot(self.a.conj().T, b)[support] if y0 is None else y0 # initial vector (sparse proxy)
-        vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
-        vx.value = y0
+            if support is None:
+                support = range(self.n)
 
-        s, sc = [], [] # the active and inactive atoms in the dictionary respectively
-        temp = list(range(y0.shape[0]))
-        loop_count = 0
+            b = self.ar.dot(y_t) # random measured signal
+            y0 = np.dot(self.a.conj().T, b)[support] if y0 is None else y0 # initial vector (sparse proxy)
+            vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
+            vx.value = y0
 
-        while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
+            s, sc = [], [] # the active and inactive atoms in the dictionary respectively
+            temp = list(range(y0.shape[0]))
+            loop_count = 0
 
-            red = self._reduce(temp, sc)
-            objective = cvxpy.Minimize(cvxpy.norm(vx[red,:], 1))
-            constraints = [cvxpy.sum_squares(self.a[:,support][:,red] @ vx[red,:] - b) <= noise_level,
-                           vx[sc,:] == 0] if len(sc) else [cvxpy.sum_squares(self.a[:,support][:,red] @ vx[red,:] - b) <= noise_level]
-            prob = cvxpy.Problem(objective, constraints)
-            prob.solve(solver=solver)
+            while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
 
-            index = []
-            s = self._reduce(temp, sc) if not len(sc) else s
-            for i, item in self.__nnwindow(s, nnw):
-                count = np.count_nonzero(abs(vx.value[item]) <= zeta0 * max(abs(vx.value))[0])
-                if count == len(item):
-                    index.extend(item)
+                red = self._reduce(temp, sc)
+                objective = cvxpy.Minimize(cvxpy.norm(vx[red,:], 1))
+                constraints = [cvxpy.sum_squares(self.a[:,support][:,red] @ vx[red,:] - b) <= noise_level,
+                               vx[sc,:] == 0] if len(sc) else [cvxpy.sum_squares(self.a[:,support][:,red] @ vx[red,:] - b) <= noise_level]
+                prob = cvxpy.Problem(objective, constraints)
+                prob.solve(solver=solver)
 
-            sc = list(set(sc + index))
-            s = self._reduce(s, sc)
+                index = []
+                s = self._reduce(temp, sc) if not len(sc) else s
+                for i, item in self.__nnwindow(s, nnw):
+                    count = np.count_nonzero(abs(vx.value[item]) <= zeta0 * max(abs(vx.value))[0])
+                    if count == len(item):
+                        index.extend(item)
 
-            if len(index) == 0:
-                zeta0 += dzeta
-                nnw -= 1
-                if nnw == 0:
-                    break
-            loop_count += 1
+                sc = list(set(sc + index))
+                s = self._reduce(s, sc)
 
-        if loop_count == 0:
-            red = temp
+                if len(index) == 0:
+                    zeta0 += dzeta
+                    nnw -= 1
+                    if nnw == 0:
+                        break
+                loop_count += 1
 
-        y_sparse_hat = vx.value # recovered sparse signal
-        y_hat = self.a0[:,support].dot(y_sparse_hat)
+            if loop_count == 0:
+                red = temp
+
+            y_sparse_hat = vx.value # recovered sparse signal
+            y_hat = self.a0[:,support].dot(y_sparse_hat)
+
+        else:
+            y_t = y_signal
+
+            if support is None:
+                support = range(self.mt*self.nt)
+
+            b = np.einsum("ijkl,kl->ij", self.ar, y_t) # random measured signal
+            y0 = np.einsum("ijk,ij->k", self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support], b) if y0 is None else y0 # initial vector
+            vx = cvxpy.Variable(y0.shape, complex=True)
+            vx.value = y0
+
+            s, sc = [], [] # the active and inactive atoms in the dictionary respectively
+            temp = list(range(y0.shape[0]))
+            loop_count = 0
+
+            while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
+
+                red = self._reduce(temp, sc)
+                objective = cvxpy.Minimize(cvxpy.norm(vx[red], 1))
+                constraints = [cvxpy.sum_squares(cvxpy.einsum("ijk,k->ij", self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support][:, :, red], vx[red]) - b) <= noise_level,
+                               vx[sc] == 0] if len(sc) else [cvxpy.sum_squares(cvxpy.einsum("ijk,k->ij", self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support][:, :, red], vx[red]) - b) <= noise_level]
+                prob = cvxpy.Problem(objective, constraints)
+                prob.solve(solver=solver, canon_backend='SCIPY')
+
+                index = []
+                s = self._reduce(temp, sc) if not len(sc) else s
+                for i, item in self.__nnwindow(s, nnw):
+                    count = np.count_nonzero(abs(vx.value[item]) <= zeta0 * max(abs(vx.value)))
+                    if count == len(item):
+                        index.extend(item)
+
+                sc = list(set(sc + index))
+                s = self._reduce(s, sc)
+
+                if len(index) == 0:
+                    zeta0 += dzeta
+                    nnw -= 1
+                    if nnw == 0:
+                        break
+                loop_count += 1
+
+            if loop_count == 0:
+                red = temp
+
+            y_hat = np.einsum("ijk,k->ij", self.a0.reshape(self.m, self.n, self.mt*self.nt)[:, :, support], vx.value)
+            y_sparse_hat = vx.value.reshape(self.mt, self.nt) # recovered sparse signal
+
         return y_hat, y_sparse_hat
 
 
     @_boost_superresolver
-    def nlht_lasso(self, y_signal, max_iter=30, lam=None, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
+    def nlht_lasso(self, y_signal, lam=None, max_iter=30, nnw=9, zeta0=0.025, dzeta=0.025, y0=None, support=None, solver="CLARABEL"):
         """
         Basis pursuit denoising via non-local hard threshholding (lasso form),
         a spectral projected gradient method for L1 minimization with SPGL1 +
@@ -554,8 +747,12 @@ class Superresolvers:
 
         if not isinstance(y_signal, np.ndarray):
             raise ValueError("The first argument must be an array.")
-        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
-            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
+        if not self.signal2d:
+            if not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
+                raise ValueError("The first argument must be an array of shape (m,) or (m,1).")
+        else:
+            if not (y_signal.ndim == 2 and y_signal.shape[1] > 1):
+                raise ValueError("The first argument must be an array of shape (m,n).")
 
         if lam is not None:
             if not isinstance(lam, (int, float)):
@@ -578,65 +775,111 @@ class Superresolvers:
         elif dzeta < 0:
             raise ValueError("dzeta must be a non-negative float.")
 
-        if not isinstance(y_signal, np.ndarray):
-            raise ValueError("The first argument must be an array.")
-        elif not (y_signal.ndim == 1 or (y_signal.ndim == 2 and y_signal.shape[1] == 1)):
-            raise ValueError("The first argument must be an array of shape (n,) or (n,1).")
-
         if not isinstance(max_iter, int):
             raise ValueError("max_iter must be a positive integer.")
         elif max_iter < 0:
             raise ValueError("max_iter must be a positive integer.")
 
-        y_t = y_signal.reshape((-1,1))
-        _, axes3d = y_t.shape
+        if not self.signal2d:
+            y_t = y_signal.reshape((-1,1))
+            _, axes3d = y_t.shape
 
-        lam = 0.007 * np.linalg.norm(self.a_tr.T.dot(y_t).ravel(), np.inf) + 1e-6 if lam is None else lam
+            lam = 0.007 * np.linalg.norm(self.a_tr.T.dot(y_t).ravel(), np.inf) + 1e-6 if lam is None else lam
 
-        if support is None:
-            support = range(self.n)
-        elif 1 < len(support) <= nnw:
-            nnw = len(support)//2
+            if support is None:
+                support = range(self.n)
+            elif 1 < len(support) <= nnw:
+                nnw = len(support)//2
+            else:
+                nnw = 1
+
+            b = self.ar.dot(y_t)  # random measured signal
+            y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (sparse proxy)
+            vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
+            vx.value = y0
+
+            temp = list(range(y0.shape[0]))
+            s, sc = temp, [] # the active and inactive atoms in the dictionary respectively
+
+            loop_count = 0
+            objective = cvxpy.Minimize(0.5 * cvxpy.sum_squares(self.a[:,support] @ vx - b) + lam * cvxpy.norm(vx, 1))
+            prob = cvxpy.Problem(objective)
+
+            while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
+
+                prob.solve(solver=solver)
+                if len(sc):
+                    vx.value[sc] = 0.
+
+                index = []
+                s = self._reduce(temp, sc) if not len(sc) else s
+                for i, item in self.__nnwindow(s, nnw):
+                    count = np.count_nonzero(abs(vx.value[item]) <= zeta0 * max(abs(vx.value))[0])
+                    if count == len(item):
+                        index.extend(item)
+
+                sc = list(set(sc + index))
+                s = self._reduce(s, sc)
+
+                if len(index) == 0:
+                    zeta0 += dzeta
+                    nnw -= 1
+                    if nnw == 0:
+                        break
+                loop_count += 1
+
+            y_sparse_hat = vx.value  # recovered sparse signal
+            y_hat = self.a0[:,support][:,s].dot(y_sparse_hat[s,:])
+
         else:
-            nnw = 1
+            y_t = y_signal
+            lam = 0.007 * np.linalg.norm(np.einsum("ijkl,kl->ij", self.a_tr, y_t), np.inf) + 1e-6 if lam is None else lam
 
-        b = self.ar.dot(y_t)  # random measured signal
-        y0 = np.zeros((self.n, axes3d))[support] if y0 is None else y0 # initial vector (sparse proxy)
-        vx = cvxpy.Variable((y0.shape[0], axes3d), complex=True)
-        vx.value = y0
+            if support is None:
+                support = range(self.mt*self.nt)
+            elif 1 < len(support) <= nnw:
+                nnw = len(support)//2
+            else:
+                nnw = 1
 
-        temp = list(range(y0.shape[0]))
-        s, sc = temp, [] # the active and inactive atoms in the dictionary respectively
+            b = np.einsum("ijkl,kl->ij", self.ar, y_t) # random measured signal
+            y0 = np.zeros(self.mt*self.nt)[support] if y0 is None else y0 # initial matrix
+            vx = cvxpy.Variable(y0.shape, complex=True)
+            vx.value = y0 # rough guess
 
-        loop_count = 0
-        objective = cvxpy.Minimize(0.5 * cvxpy.sum_squares(self.a[:,support] @ vx - b) + lam * cvxpy.norm(vx, 1))
-        prob = cvxpy.Problem(objective)
+            temp = list(range(y0.shape[0]))
+            s, sc = temp, [] # the active and inactive atoms in the dictionary respectively
 
-        while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
+            loop_count = 0
+            objective = cvxpy.Minimize(0.5 * cvxpy.sum_squares(cvxpy.einsum("ijk,k->ij", self.a.reshape(self.ks, self.ls, self.mt*self.nt)[:, :, support], vx) - b) + lam * cvxpy.norm(vx, 1))
+            prob = cvxpy.Problem(objective)
 
-            prob.solve(solver=solver)
-            if len(sc):
-                vx.value[sc] = 0.
+            while len(sc) <= np.count_nonzero(abs(vx.value) <= 0.) and loop_count < max_iter:
 
-            index = []
-            s = self._reduce(temp, sc) if not len(sc) else s
-            for i, item in self.__nnwindow(s, nnw):
-                count = np.count_nonzero(abs(vx.value[item]) <= zeta0 * max(abs(vx.value))[0])
-                if count == len(item):
-                    index.extend(item)
+                prob.solve(solver=solver, canon_backend='SCIPY')
+                if len(sc):
+                    vx.value[sc] = 0.
 
-            sc = list(set(sc + index))
-            s = self._reduce(s, sc)
+                index = []
+                s = self._reduce(temp, sc) if not len(sc) else s
+                for i, item in self.__nnwindow(s, nnw):
+                    count = np.count_nonzero(abs(vx.value[item]) <= zeta0 * max(abs(vx.value)))
+                    if count == len(item):
+                        index.extend(item)
 
-            if len(index) == 0:
-                zeta0 += dzeta
-                nnw -= 1
-                if nnw == 0:
-                    break
-            loop_count += 1
+                sc = list(set(sc + index))
+                s = self._reduce(s, sc)
 
-        y_sparse_hat = vx.value  # recovered sparse signal
-        y_hat = self.a0[:,support][:,s].dot(y_sparse_hat[s,:])
+                if len(index) == 0:
+                    zeta0 += dzeta
+                    nnw -= 1
+                    if nnw == 0:
+                        break
+                loop_count += 1
+
+            y_hat = np.einsum("ijk,k->ij", self.a0.reshape(self.m, self.n, self.mt*self.nt)[:,:,support][:,:,s].real, vx.value[s])
+            y_sparse_hat = vx.value.reshape(self.mt, self.nt) if y0 is None else vx.value  # recovered sparse signal
+
         return y_hat, y_sparse_hat
 
 
@@ -649,8 +892,8 @@ class Superresolvers:
             low_bound = i - i*(i < nnw//2) - (nnw//2)*(i > nnw)
             up_bound  = i + (nnw//2 + 1)*((dim - i) > nnw//2) + (dim - i)*((dim - i) < nnw//2)
             temp = [j for j in red[low_bound: up_bound] if abs(j - item) <= nnw//2]
-            # if item in temp:
-            #     temp.remove(item)
+            if item in temp:
+                temp.remove(item)
             l.append((item, temp))
         return l
 
