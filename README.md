@@ -1,6 +1,6 @@
 <br />
 <div align="center">
-  <a href="https://https://github.com/marcelolooser/cssr">
+  <a href="https://github.com/marcelolooser/cssr">
     <img src="images/cssr_logo.svg" alt="Logo" width="100%">
   </a>
 </div>
@@ -38,7 +38,7 @@ algorithms (cf. [References](#references)). Its central components include:
 
 <br />
 <div align="center">
-  <a href="https://https://github.com/marcelolooser/cssr">
+  <a href="https://github.com/marcelolooser/cssr">
     <img src="images/2d-example.svg" alt="Logo" width="100%">
   </a>
 </div>
